@@ -538,10 +538,9 @@ def api_toggle_license_emails(license_id):
         logger.error(f"Error toggling email status for license {license_id}: {e}")
         return jsonify({'error': str(e)}), 500
 
-# Vercel serverless function handler
-def handler(request):
-    """Main handler function for Vercel"""
-    return app(request.environ, lambda status, headers: None)
+# Export the Flask app for Vercel
+# This is the key - Vercel looks for an 'app' variable
+# No need for a custom handler function
 
 # For local development
 if __name__ == '__main__':
