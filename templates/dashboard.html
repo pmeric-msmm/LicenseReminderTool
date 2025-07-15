@@ -1,0 +1,508 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - License Management{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-tachometer-alt me-2"></i>
+    Dashboard Overview
+{% endblock %}
+
+{% block content %}
+    <!-- Filter Controls -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h6 class="mb-0">
+                        <i class="fas fa-sliders-h me-2"></i>
+                        Dashboard Filters
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form id="dashboardFilters" class="row align-items-end">
+                        <div class="col-md-3 mb-2">
+                            <label for="upcomingDays" class="form-label">Upcoming Expirations (Days)</label>
+                            <input type="number" class="form-control" id="upcomingDays" value="35" min="1" max="365">
+                        </div>
+                        
+                        <div class="col-md-3 mb-2">
+                            <label for="warningDays" class="form-label">Warning Alert (Days)</label>
+                            <input type="number" class="form-control" id="warningDays" value="30" min="1" max="180">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <label for="criticalDays" class="form-label">Critical Alert (Days)</label>
+                            <input type="number" class="form-control" id="criticalDays" value="10" min="1" max="90">
+                        </div>
+                        <div class="col-md-3 mb-2">
+                            <button type="button" class="btn btn-primary" onclick="applyFilters()">
+                                <i class="fas fa-filter me-1"></i>
+                                Apply Filters
+                            </button>
+                            <button type="button" class="btn btn-outline-secondary ms-2" onclick="resetFilters()">
+                                <i class="fas fa-undo me-1"></i>
+                                Reset
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Statistics Cards -->
+    <div class="row mb-4">
+        <div class="col mb-3">
+            <a href="{{ url_for('licenses') }}?upcoming_days={{ filter_upcoming }}&critical_days={{ filter_critical }}&warning_days={{ filter_warning }}" class="text-decoration-none">
+                <div class="card stat-card success clickable-card h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title text-uppercase mb-1">Total Licenses</h6>
+                            <h2 class="mb-0">{{ stats.total_licenses }}</h2>
+                        </div>
+                        <div class="text-end">
+                            <i class="fas fa-certificate fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col mb-3">
+            <a href="{{ url_for('licenses') }}?filter=upcoming&upcoming_days={{ filter_upcoming }}&critical_days={{ filter_critical }}&warning_days={{ filter_warning }}" class="text-decoration-none">
+                <div class="card stat-card clickable-card h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title text-uppercase mb-1">Upcoming Expirations</h6>
+                            <h2 class="mb-0">{{ stats.upcoming_expirations }}</h2>
+                            <small>Next {{ filter_upcoming }} days</small>
+                        </div>
+                        <div class="text-end">
+                            <i class="fas fa-clock fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col mb-3">
+            <a href="{{ url_for('licenses') }}?filter=warning&upcoming_days={{ filter_upcoming }}&critical_days={{ filter_critical }}&warning_days={{ filter_warning }}" class="text-decoration-none">
+                <div class="card stat-card warning clickable-card h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title text-uppercase mb-1">Warning</h6>
+                            <h2 class="mb-0">{{ stats.warning_count }}</h2>
+                            <small>Next {{ filter_warning }} days</small>
+                        </div>
+                        <div class="text-end">
+                            <i class="fas fa-exclamation-triangle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col mb-3">
+            <a href="{{ url_for('licenses') }}?filter=critical&upcoming_days={{ filter_upcoming }}&critical_days={{ filter_critical }}&warning_days={{ filter_warning }}" class="text-decoration-none">
+                <div class="card stat-card critical clickable-card h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title text-uppercase mb-1">Critical</h6>
+                            <h2 class="mb-0">{{ stats.critical_count }}</h2>
+                            <small>Next {{ filter_critical }} days</small>
+                        </div>
+                        <div class="text-end">
+                            <i class="fas fa-exclamation-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+        
+        <div class="col mb-3">
+            <a href="{{ url_for('licenses') }}?filter=past_due&upcoming_days={{ filter_upcoming }}&critical_days={{ filter_critical }}&warning_days={{ filter_warning }}" class="text-decoration-none">
+                <div class="card stat-card past-due clickable-card h-100">
+                    <div class="card-body d-flex align-items-center">
+                        <div class="flex-grow-1">
+                            <h6 class="card-title text-uppercase mb-1">Past Due</h6>
+                            <h2 class="mb-0">{{ stats.past_due_count }}</h2>
+                            <small>Expired licenses</small>
+                        </div>
+                        <div class="text-end">
+                            <i class="fas fa-times-circle fa-2x opacity-75"></i>
+                        </div>
+                    </div>
+                </div>
+            </a>
+        </div>
+    </div>
+    
+    <!-- Past Due Licenses (Highest Priority) -->
+    {% if past_due %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-times-circle me-2"></i>
+                        🚨 PAST DUE - Licenses Have Expired
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>License Name</th>
+                                    <th>Type</th>
+                                    <th>State</th>
+                                    <th>Expiration Date</th>
+                                    <th>Days Overdue</th>
+                                    <th>Email Contacts</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for license in past_due %}
+                                <tr class="table-danger">
+                                    <td><strong>{{ license.lic_name }}</strong></td>
+                                    <td>{{ license.lic_type or 'N/A' }}</td>
+                                    <td>{{ license.lic_state or 'N/A' }}</td>
+                                    <td>
+                                        <span data-date="{{ license.expiration_date }}">{{ license.expiration_date }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge bg-danger">{{ license.days_overdue }} days overdue</span>
+                                    </td>
+                                    <td>
+                                        {% if license.lic_notify_names %}
+                                            <small>{{ license.lic_notify_names }}</small>
+                                        {% else %}
+                                            <span class="text-muted">No email set</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Critical Licenses (Expiring in 10 days) -->
+    {% if critical %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-circle me-2"></i>
+                        Critical - Expiring in 10 Days or Less
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>License Name</th>
+                                    <th>Type</th>
+                                    <th>State</th>
+                                    <th>Expiration Date</th>
+                                    <th>Days Left</th>
+                                    <th>Email Contacts</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for license in critical %}
+                                <tr>
+                                    <td><strong>{{ license.lic_name }}</strong></td>
+                                    <td>{{ license.lic_type or 'N/A' }}</td>
+                                    <td>{{ license.lic_state or 'N/A' }}</td>
+                                    <td>
+                                        <span data-date="{{ license.expiration_date }}">{{ license.expiration_date }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-critical">{{ license.days_until_expiration }} days</span>
+                                    </td>
+                                    <td>
+                                        {% if license.lic_notify_names %}
+                                            <small>{{ license.lic_notify_names }}</small>
+                                        {% else %}
+                                            <span class="text-muted">No email set</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Warning Licenses (Expiring in 30 days) -->
+    {% if warning %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-warning">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-triangle me-2"></i>
+                        Warning - Expiring in 11-30 Days
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>License Name</th>
+                                    <th>Type</th>
+                                    <th>State</th>
+                                    <th>Expiration Date</th>
+                                    <th>Days Left</th>
+                                    <th>Email Contacts</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for license in warning %}
+                                <tr>
+                                    <td><strong>{{ license.lic_name }}</strong></td>
+                                    <td>{{ license.lic_type or 'N/A' }}</td>
+                                    <td>{{ license.lic_state or 'N/A' }}</td>
+                                    <td>
+                                        <span data-date="{{ license.expiration_date }}">{{ license.expiration_date }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-warning">{{ license.days_until_expiration }} days</span>
+                                    </td>
+                                    <td>
+                                        {% if license.lic_notify_names %}
+                                            <small>{{ license.lic_notify_names }}</small>
+                                        {% else %}
+                                            <span class="text-muted">No email set</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Normal Upcoming Licenses (31-35 days) -->
+    {% if normal %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-secondary">
+                <div class="card-header bg-secondary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle me-2"></i>
+                        Upcoming - Expiring in 31-35 Days
+                    </h5>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>License Name</th>
+                                    <th>Type</th>
+                                    <th>State</th>
+                                    <th>Expiration Date</th>
+                                    <th>Days Left</th>
+                                    <th>Email Contacts</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for license in normal %}
+                                <tr>
+                                    <td><strong>{{ license.lic_name }}</strong></td>
+                                    <td>{{ license.lic_type or 'N/A' }}</td>
+                                    <td>{{ license.lic_state or 'N/A' }}</td>
+                                    <td>
+                                        <span data-date="{{ license.expiration_date }}">{{ license.expiration_date }}</span>
+                                    </td>
+                                    <td>
+                                        <span class="badge badge-normal">{{ license.days_until_expiration }} days</span>
+                                    </td>
+                                    <td>
+                                        {% if license.lic_notify_names %}
+                                            <small>{{ license.lic_notify_names }}</small>
+                                        {% else %}
+                                            <span class="text-muted">No email set</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- No Upcoming Expirations -->
+    {% if not critical and not warning and not normal %}
+    <div class="row">
+        <div class="col-12">
+            <div class="card border-success">
+                <div class="card-body text-center py-5">
+                    <div class="text-success mb-3">
+                        <i class="fas fa-check-circle fa-4x"></i>
+                    </div>
+                    <h4 class="text-success">All Clear!</h4>
+                    <p class="text-muted">No licenses are expiring in the next 35 days.</p>
+                    <a href="{{ url_for('licenses') }}" class="btn btn-outline-success">
+                        <i class="fas fa-list me-2"></i>
+                        View All Licenses
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    
+    <!-- Quick Actions -->
+    <div class="row mt-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bolt me-2"></i>
+                        Quick Actions
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p class="text-muted">Manage your license data and reminders:</p>
+                            <a href="{{ url_for('licenses') }}" class="btn btn-primary me-2 mb-2">
+                                <i class="fas fa-list me-2"></i>
+                                View All Licenses
+                            </a>
+                            <a href="{{ url_for('reminders') }}" class="btn btn-info me-2 mb-2">
+                                <i class="fas fa-envelope me-2"></i>
+                                Email History
+                            </a>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="text-muted">API endpoints for integration:</p>
+                            <div class="d-flex flex-wrap">
+                                <a href="/api/upcoming" class="btn btn-outline-secondary btn-sm me-2 mb-2" target="_blank">
+                                    <i class="fas fa-code me-1"></i>
+                                    API: Upcoming
+                                </a>
+                                <a href="/api/stats" class="btn btn-outline-secondary btn-sm me-2 mb-2" target="_blank">
+                                    <i class="fas fa-chart-bar me-1"></i>
+                                    API: Stats
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    // Dashboard filter functionality
+    function applyFilters() {
+        const upcomingDays = document.getElementById('upcomingDays').value;
+        const criticalDays = document.getElementById('criticalDays').value;
+        const warningDays = document.getElementById('warningDays').value;
+        
+        // Validate inputs
+        if (parseInt(criticalDays) >= parseInt(warningDays)) {
+            alert('Critical days must be less than warning days');
+            return;
+        }
+        
+        if (parseInt(warningDays) >= parseInt(upcomingDays)) {
+            alert('Warning days must be less than upcoming days');
+            return;
+        }
+        
+        // Show loading message
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => btn.disabled = true);
+        
+        // Update URL parameters and reload
+        const url = new URL(window.location);
+        url.searchParams.set('upcoming_days', upcomingDays);
+        url.searchParams.set('critical_days', criticalDays);
+        url.searchParams.set('warning_days', warningDays);
+        window.location.href = url.toString();
+    }
+    
+    function resetFilters() {
+        // Show loading message
+        const buttons = document.querySelectorAll('button');
+        buttons.forEach(btn => btn.disabled = true);
+        
+        // Remove URL parameters and reload
+        const url = new URL(window.location);
+        url.searchParams.delete('upcoming_days');
+        url.searchParams.delete('critical_days');
+        url.searchParams.delete('warning_days');
+        window.location.href = url.toString();
+    }
+    
+    // Load filter values from URL on page load
+    document.addEventListener('DOMContentLoaded', function() {
+        const url = new URL(window.location);
+        const upcomingDays = url.searchParams.get('upcoming_days');
+        const criticalDays = url.searchParams.get('critical_days');
+        const warningDays = url.searchParams.get('warning_days');
+        
+        if (upcomingDays) {
+            document.getElementById('upcomingDays').value = upcomingDays;
+        }
+        if (criticalDays) {
+            document.getElementById('criticalDays').value = criticalDays;
+        }
+        if (warningDays) {
+            document.getElementById('warningDays').value = warningDays;
+        }
+        
+        // Add real-time validation
+        const inputs = ['upcomingDays', 'criticalDays', 'warningDays'];
+        inputs.forEach(inputId => {
+            const input = document.getElementById(inputId);
+            if (input) {
+                input.addEventListener('change', function() {
+                    validateFilterInputs();
+                });
+            }
+        });
+    });
+    
+    function validateFilterInputs() {
+        const upcomingDays = parseInt(document.getElementById('upcomingDays').value);
+        const criticalDays = parseInt(document.getElementById('criticalDays').value);
+        const warningDays = parseInt(document.getElementById('warningDays').value);
+        
+        const applyBtn = document.querySelector('button[onclick="applyFilters()"]');
+        
+        if (criticalDays >= warningDays || warningDays >= upcomingDays) {
+            applyBtn.disabled = true;
+            applyBtn.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i>Invalid Range';
+        } else {
+            applyBtn.disabled = false;
+            applyBtn.innerHTML = '<i class="fas fa-filter me-1"></i>Apply Filters';
+        }
+    }
+</script>
+{% endblock %} 

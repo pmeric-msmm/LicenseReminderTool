@@ -1,0 +1,355 @@
+{% extends "base.html" %}
+
+{% block title %}Email History - License Management{% endblock %}
+
+{% block page_title %}
+    <i class="fas fa-envelope me-2"></i>
+    Email Reminder History
+{% endblock %}
+
+{% block content %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history me-2"></i>
+                            Sent Reminder History
+                        </h5>
+                        <div>
+                            <span class="badge bg-info">{{ reminders|length }} Recent Records</span>
+                        </div>
+                    </div>
+                </div>
+                
+                {% if reminders %}
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead>
+                                <tr>
+                                    <th>Date Sent</th>
+                                    <th>License</th>
+                                    <th>Reminder Type</th>
+                                    <th>Recipients</th>
+                                    <th>Subject</th>
+                                    <th>Status</th>
+                                    <th>Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for reminder in reminders %}
+                                <tr>
+                                    <td>
+                                        <span data-datetime="{{ reminder.sent_date }}">{{ reminder.sent_date }}</span>
+                                    </td>
+                                    <td>
+                                        {% if reminder.licenses %}
+                                            <div>
+                                                <strong>{{ reminder.licenses.lic_name }}</strong>
+                                                <br><small class="text-muted">{{ reminder.licenses.lic_type }} - {{ reminder.licenses.lic_state }}</small>
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">License not found</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% set reminder_type = reminder.reminder_type %}
+                                        {% if reminder_type == '30_days' %}
+                                            <span class="badge bg-info">30 Days</span>
+                                        {% elif reminder_type == '15_days' %}
+                                            <span class="badge bg-warning">15 Days</span>
+                                        {% elif reminder_type == '10_days' %}
+                                            <span class="badge bg-danger">10 Days</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">{{ reminder_type }}</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="d-flex flex-wrap">
+                                            {% for email in reminder.email_addresses.split(',') %}
+                                                <span class="badge bg-light text-dark me-1 mb-1">{{ email.strip() }}</span>
+                                            {% endfor %}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        <div class="text-truncate" style="max-width: 200px;" title="{{ reminder.email_subject }}">
+                                            {{ reminder.email_subject }}
+                                        </div>
+                                    </td>
+                                    <td>
+                                        {% if reminder.status == 'sent' %}
+                                            <span class="badge bg-success">
+                                                <i class="fas fa-check me-1"></i>Sent
+                                            </span>
+                                        {% elif reminder.status == 'failed' %}
+                                            <span class="badge bg-danger">
+                                                <i class="fas fa-times me-1"></i>Failed
+                                            </span>
+                                        {% else %}
+                                            <span class="badge bg-warning">
+                                                <i class="fas fa-clock me-1"></i>Pending
+                                            </span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        <div class="btn-group" role="group">
+                                            <button class="btn btn-sm btn-outline-primary" 
+                                                    data-email-id="{{ reminder.id }}"
+                                                    data-email-subject="{{ reminder.email_subject }}"
+                                                    data-email-body="{{ reminder.email_body }}"
+                                                    onclick="showEmailDetails(this)"
+                                                    title="View email content">
+                                                <i class="fas fa-eye"></i>
+                                            </button>
+                                            {% if reminder.license_id %}
+                                                {% set email_enabled = reminder.licenses.email_enabled if reminder.licenses else true %}
+                                                {% if email_enabled %}
+                                                <button class="btn btn-sm btn-outline-danger" 
+                                                        data-license-id="{{ reminder.license_id }}"
+                                                        data-license-name="{{ reminder.licenses.lic_name if reminder.licenses else 'Unknown' }}"
+                                                        onclick="stopEmails(this)"
+                                                        title="Stop email reminders for this license">
+                                                    <i class="fas fa-ban"></i>
+                                                </button>
+                                                {% else %}
+                                                <button class="btn btn-sm btn-success" 
+                                                        data-license-id="{{ reminder.license_id }}"
+                                                        data-license-name="{{ reminder.licenses.lic_name if reminder.licenses else 'Unknown' }}"
+                                                        onclick="stopEmails(this)"
+                                                        title="Email reminders are stopped - click to re-enable">
+                                                    <i class="fas fa-check"></i>
+                                                </button>
+                                                {% endif %}
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                {% else %}
+                <div class="card-body text-center py-5">
+                    <div class="text-muted mb-3">
+                        <i class="fas fa-inbox fa-4x"></i>
+                    </div>
+                    <h4 class="text-muted">No Email History</h4>
+                    <p class="text-muted">No reminder emails have been sent yet.</p>
+                    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-primary">
+                        <i class="fas fa-tachometer-alt me-2"></i>
+                        Back to Dashboard
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Summary Statistics -->
+    {% if reminders %}
+    <div class="row">
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-success">
+                        {{ reminders | selectattr('status', 'equalto', 'sent') | list | length }}
+                    </h5>
+                    <p class="card-text">Successfully Sent</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">
+                        {{ reminders | selectattr('status', 'equalto', 'failed') | list | length }}
+                    </h5>
+                    <p class="card-text">Failed</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-info">
+                        {{ reminders | selectattr('reminder_type', 'equalto', '30_days') | list | length }}
+                    </h5>
+                    <p class="card-text">30-Day Reminders</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3 mb-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">
+                        {{ reminders | selectattr('reminder_type', 'equalto', '15_days') | list | length +
+                           reminders | selectattr('reminder_type', 'equalto', '10_days') | list | length }}
+                    </h5>
+                    <p class="card-text">Critical Reminders</p>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <!-- Email Details Modal -->
+    <div class="modal fade" id="emailDetailsModal" tabindex="-1" aria-labelledby="emailDetailsModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="emailDetailsModalLabel">
+                        <i class="fas fa-envelope me-2"></i>
+                        Email Details
+                    </h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Subject:</strong></label>
+                        <div id="emailSubject" class="form-control-plaintext border p-2 rounded bg-light"></div>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label"><strong>Message Body:</strong></label>
+                        <div id="emailBody" class="form-control-plaintext border p-3 rounded bg-light" style="white-space: pre-wrap; font-family: monospace;"></div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
+                </div>
+            </div>
+        </div>
+    </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function showEmailDetails(button) {
+        // Get data from button attributes
+        const subject = button.getAttribute('data-email-subject') || 'No subject';
+        const body = button.getAttribute('data-email-body') || 'No content';
+        
+        // Add null checks to prevent errors
+        const emailSubjectElement = document.getElementById('emailSubject');
+        const emailBodyElement = document.getElementById('emailBody');
+        const modalElement = document.getElementById('emailDetailsModal');
+        
+        if (!emailSubjectElement || !emailBodyElement || !modalElement) {
+            console.error('Modal elements not found');
+            alert('Error: Could not display email details. Please refresh the page.');
+            return;
+        }
+        
+        // Set modal content
+        emailSubjectElement.textContent = subject;
+        emailBodyElement.textContent = body;
+        
+        // Show modal
+        const modal = new bootstrap.Modal(modalElement);
+        modal.show();
+    }
+
+    function stopEmails(button) {
+        // Get data from button attributes
+        const licenseId = button.getAttribute('data-license-id');
+        const licenseName = button.getAttribute('data-license-name') || 'this license';
+        
+        if (!licenseId) {
+            alert('Error: License ID not found.');
+            return;
+        }
+        
+        if (confirm(`Are you sure you want to STOP all future email reminders for "${licenseName}"?\n\nThis will prevent any further reminder emails for this license.`)) {
+            // Disable the button to prevent multiple clicks
+            button.disabled = true;
+            button.innerHTML = '<i class="fas fa-spinner fa-spin"></i>';
+            
+            fetch(`/api/license/${licenseId}/toggle-emails`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                }
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert(data.message);
+                    // Update button based on new status
+                    if (data.email_enabled) {
+                        button.innerHTML = '<i class="fas fa-ban"></i>';
+                        button.title = 'Stop email reminders for this license';
+                        button.className = 'btn btn-sm btn-outline-danger';
+                    } else {
+                        button.innerHTML = '<i class="fas fa-check"></i>';
+                        button.title = 'Email reminders are stopped - click to re-enable';
+                        button.className = 'btn btn-sm btn-success';
+                    }
+                } else {
+                    alert('Error: ' + (data.error || 'Unknown error occurred'));
+                    button.innerHTML = '<i class="fas fa-ban"></i>';
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('Error stopping emails. Please try again.');
+                button.innerHTML = '<i class="fas fa-ban"></i>';
+            })
+            .finally(() => {
+                button.disabled = false;
+            });
+        }
+    }
+
+    // Add search functionality
+    document.addEventListener('DOMContentLoaded', function() {
+        const cardHeader = document.querySelector('.card-header');
+        const searchHTML = `
+            <div class="mt-3">
+                <div class="row">
+                    <div class="col-md-8">
+                        <input type="text" class="form-control" id="reminderSearch" placeholder="Search reminders...">
+                    </div>
+                    <div class="col-md-4">
+                        <select class="form-select" id="statusFilter">
+                            <option value="">All Statuses</option>
+                            <option value="sent">Sent</option>
+                            <option value="failed">Failed</option>
+                            <option value="pending">Pending</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+        `;
+        cardHeader.insertAdjacentHTML('beforeend', searchHTML);
+        
+        // Search and filter functionality
+        const searchInput = document.getElementById('reminderSearch');
+        const statusFilter = document.getElementById('statusFilter');
+        const table = document.querySelector('table tbody');
+        const rows = table ? table.querySelectorAll('tr') : [];
+        
+        function filterTable() {
+            const searchTerm = searchInput.value.toLowerCase();
+            const statusValue = statusFilter.value.toLowerCase();
+            
+            rows.forEach(row => {
+                const text = row.textContent.toLowerCase();
+                const statusMatch = !statusValue || text.includes(statusValue);
+                const searchMatch = !searchTerm || text.includes(searchTerm);
+                
+                if (statusMatch && searchMatch) {
+                    row.style.display = '';
+                } else {
+                    row.style.display = 'none';
+                }
+            });
+        }
+        
+        if (searchInput && statusFilter) {
+            searchInput.addEventListener('input', filterTable);
+            statusFilter.addEventListener('change', filterTable);
+        }
+    });
+</script>
+{% endblock %} 

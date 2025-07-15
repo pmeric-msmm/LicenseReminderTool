@@ -1,0 +1,65 @@
+2025-07-07 15:37:04,493 - INFO - License Reminder System initialized successfully
+2025-07-07 15:37:04,493 - INFO - Uploading Excel data to Supabase...
+2025-07-07 15:37:04,493 - INFO - Reading Excel file: licenses.xlsx
+2025-07-07 15:37:04,544 - INFO - Uploading 52 records to Supabase
+2025-07-07 15:37:04,822 - INFO - HTTP Request: GET https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses?select=lic_id "HTTP/2 200 OK"
+2025-07-07 15:37:04,825 - ERROR - Error uploading Excel data: Out of range float values are not JSON compliant: nan
+2025-07-07 15:37:04,825 - ERROR - Failed to upload Excel data
+2025-07-07 15:38:05,204 - INFO - License Reminder System initialized successfully
+2025-07-07 15:38:05,204 - INFO - Uploading Excel data to Supabase...
+2025-07-07 15:38:05,204 - INFO - Reading Excel file: licenses.xlsx
+2025-07-07 15:38:05,253 - ERROR - Error uploading Excel data: name 'math' is not defined
+2025-07-07 15:38:05,254 - ERROR - Failed to upload Excel data
+2025-07-07 15:38:15,577 - INFO - License Reminder System initialized successfully
+2025-07-07 15:38:15,577 - INFO - Uploading Excel data to Supabase...
+2025-07-07 15:38:15,577 - INFO - Reading Excel file: licenses.xlsx
+2025-07-07 15:38:15,622 - INFO - Uploading 52 records to Supabase
+2025-07-07 15:38:15,916 - INFO - HTTP Request: GET https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses?select=lic_id "HTTP/2 200 OK"
+2025-07-07 15:38:16,159 - INFO - HTTP Request: POST https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses?columns=%22expiration_date%22%2C%22lic_state%22%2C%22lic_name%22%2C%22lic_id%22%2C%22lic_no%22%2C%22lic_notify_names%22%2C%22lic_type%22%2C%22first_issue_date%22%2C%22ascem_no%22 "HTTP/2 400 Bad Request"
+2025-07-07 15:38:16,161 - ERROR - Error uploading Excel data: {'message': 'invalid input syntax for type bigint: "349839.0"', 'code': '22P02', 'hint': None, 'details': None}
+2025-07-07 15:38:16,161 - ERROR - Failed to upload Excel data
+2025-07-07 15:38:29,691 - INFO - License Reminder System initialized successfully
+2025-07-07 15:38:29,691 - INFO - Uploading Excel data to Supabase...
+2025-07-07 15:38:29,692 - INFO - Reading Excel file: licenses.xlsx
+2025-07-07 15:38:29,737 - INFO - Uploading 52 records to Supabase
+2025-07-07 15:38:29,990 - INFO - HTTP Request: GET https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses?select=lic_id "HTTP/2 200 OK"
+2025-07-07 15:38:30,090 - INFO - HTTP Request: POST https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses?columns=%22expiration_date%22%2C%22lic_no%22%2C%22lic_notify_names%22%2C%22ascem_no%22%2C%22first_issue_date%22%2C%22lic_id%22%2C%22lic_name%22%2C%22lic_state%22%2C%22lic_type%22 "HTTP/2 401 Unauthorized"
+2025-07-07 15:38:30,091 - ERROR - Error uploading Excel data: {'message': 'new row violates row-level security policy for table "licenses"', 'code': '42501', 'hint': None, 'details': None}
+2025-07-07 15:38:30,091 - ERROR - Failed to upload Excel data
+2025-07-07 15:39:04,213 - INFO - License Reminder System initialized successfully
+2025-07-07 15:39:04,533 - INFO - HTTP Request: POST https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/rpc/exec "HTTP/2 404 Not Found"
+2025-07-07 15:41:46,531 - INFO - License Reminder System initialized successfully
+2025-07-07 15:41:46,531 - INFO - Reading Excel file: licenses.xlsx
+2025-07-07 15:41:46,618 - INFO - Uploading 52 records to Supabase
+2025-07-07 15:41:46,866 - INFO - HTTP Request: GET https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses?select=lic_id "HTTP/2 200 OK"
+2025-07-07 15:41:46,870 - ERROR - Error uploading Excel data: Out of range float values are not JSON compliant: nan
+2025-07-07 15:42:36,658 - INFO - License Reminder System initialized successfully
+2025-07-07 15:42:36,658 - INFO - Reading Excel file: licenses.xlsx
+2025-07-07 15:42:36,703 - INFO - Uploading 52 records to Supabase
+2025-07-07 15:42:36,883 - INFO - HTTP Request: GET https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses?select=lic_id "HTTP/2 200 OK"
+2025-07-07 15:42:36,982 - INFO - HTTP Request: POST https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses?columns=%22lic_type%22%2C%22lic_no%22%2C%22lic_state%22%2C%22ascem_no%22%2C%22lic_notify_names%22%2C%22lic_id%22%2C%22first_issue_date%22%2C%22lic_name%22%2C%22expiration_date%22 "HTTP/2 400 Bad Request"
+2025-07-07 15:42:36,982 - ERROR - Error uploading Excel data: {'message': 'invalid input syntax for type bigint: "349839.0"', 'code': '22P02', 'hint': None, 'details': None}
+2025-07-07 15:42:57,389 - INFO - License Reminder System initialized successfully
+2025-07-07 15:42:57,389 - INFO - Reading Excel file: licenses.xlsx
+2025-07-07 15:42:57,435 - INFO - Uploading 52 records to Supabase
+2025-07-07 15:42:57,684 - INFO - HTTP Request: GET https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses?select=lic_id "HTTP/2 200 OK"
+2025-07-07 15:42:57,855 - INFO - HTTP Request: POST https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses?columns=%22lic_id%22%2C%22expiration_date%22%2C%22lic_no%22%2C%22lic_notify_names%22%2C%22lic_type%22%2C%22ascem_no%22%2C%22first_issue_date%22%2C%22lic_name%22%2C%22lic_state%22 "HTTP/2 401 Unauthorized"
+2025-07-07 15:42:57,856 - ERROR - Error uploading Excel data: {'message': 'new row violates row-level security policy for table "licenses"', 'code': '42501', 'hint': None, 'details': None}
+2025-07-07 15:59:05,240 - INFO - License Reminder System initialized successfully
+2025-07-07 15:59:05,240 - INFO - Running reminder check...
+2025-07-07 15:59:05,240 - INFO - Starting reminder processing...
+2025-07-07 15:59:05,537 - INFO - HTTP Request: GET https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/licenses_needing_reminders?select=%2A "HTTP/2 200 OK"
+2025-07-07 15:59:05,541 - INFO - Found 4 licenses needing reminders
+2025-07-07 15:59:05,823 - ERROR - Error sending email to philipmeric007@gmail.com: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 00721157ae682-71665ae2c29sm18088737b3.78 - gsmtp')
+2025-07-07 15:59:06,010 - INFO - HTTP Request: POST https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/email_reminders "HTTP/2 201 Created"
+2025-07-07 15:59:06,011 - ERROR - Failed to send reminder for MSMM Infrastructure, LLC
+2025-07-07 15:59:06,232 - ERROR - Error sending email to philipmeric007@gmail.com: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 00721157ae682-7176b41ffddsm13203017b3.68 - gsmtp')
+2025-07-07 15:59:06,418 - INFO - HTTP Request: POST https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/email_reminders "HTTP/2 201 Created"
+2025-07-07 15:59:06,418 - ERROR - Failed to send reminder for International Strategic Consulting Partners
+2025-07-07 15:59:06,641 - ERROR - Error sending email to philipmeric007@gmail.com: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 00721157ae682-7166598b33fsm18271457b3.3 - gsmtp')
+2025-07-07 15:59:06,741 - INFO - HTTP Request: POST https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/email_reminders "HTTP/2 201 Created"
+2025-07-07 15:59:06,742 - ERROR - Failed to send reminder for Certify SBA MSMM-HZ JV Metor Protégé
+2025-07-07 15:59:06,966 - ERROR - Error sending email to scott@msmmeng.com, philipmeric007@gmail.com: (535, b'5.7.8 Username and Password not accepted. For more information, go to\n5.7.8  https://support.google.com/mail/?p=BadCredentials 3f1490d57ef6-e899c4b36d0sm2842266276.51 - gsmtp')
+2025-07-07 15:59:07,163 - INFO - HTTP Request: POST https://clcufcjifbvpbtsczkmx.supabase.co/rest/v1/email_reminders "HTTP/2 201 Created"
+2025-07-07 15:59:07,164 - ERROR - Failed to send reminder for SAM MSMM Houston Office
+2025-07-07 15:59:07,164 - INFO - Reminder processing completed
