@@ -306,10 +306,14 @@
         // Update modal title
         document.getElementById('editLicenseModalLabel').textContent = 'Edit License';
         
+        // Show loader while fetching data
+        showLoader('Loading license data...');
+        
         // Fetch license details
         fetch(`/api/license/${licenseId}`)
             .then(response => response.json())
             .then(data => {
+                hideLoader();
                 if (data.error) {
                     alert('Error loading license: ' + data.error);
                     return;
@@ -338,12 +342,13 @@
                 }
                 
                 // Now safely populate the form
-                document.getElementById('editLicenseId').value = data.id || '';
+                document.getElementById('editLicenseId').value = data.lic_id || '';
                 document.getElementById('editLicenseName').value = data.lic_name || '';
                 document.getElementById('editLicenseState').value = data.lic_state || '';
                 document.getElementById('editLicenseNumber').value = data.lic_no || '';
-                document.getElementById('editIssueDate').value = data.first_issue_date || '';
-                document.getElementById('editExpirationDate').value = data.expiration_date || '';
+                // Format dates from ISO to YYYY-MM-DD for HTML date inputs
+                document.getElementById('editIssueDate').value = data.first_issue_date ? data.first_issue_date.split('T')[0] : '';
+                document.getElementById('editExpirationDate').value = data.expiration_date ? data.expiration_date.split('T')[0] : '';
                 document.getElementById('editAscemNo').value = data.ascem_no || '';
                 document.getElementById('editNotifyEmails').value = data.lic_notify_names || '';
                 
@@ -357,6 +362,7 @@
                 bootstrapModal.show();
             })
             .catch(error => {
+                hideLoader();
                 console.error('Error:', error);
                 alert('Error loading license details');
             });
@@ -385,6 +391,13 @@
         const isUpdate = licenseId && licenseId.trim() !== '';
         const url = isUpdate ? `/api/license/${licenseId}` : '/api/license';
         const method = isUpdate ? 'PUT' : 'POST';
+        
+        // Show loader with appropriate message
+        showLoader(isUpdate ? 'Updating license...' : 'Creating license...');
+        
+        // Close the modal first
+        const modal = bootstrap.Modal.getInstance(document.getElementById('editLicenseModal'));
+        modal.hide();
 
         // Only include id in the data for updates
         if (isUpdate) {
@@ -400,18 +413,18 @@
         })
         .then(response => response.json())
         .then(data => {
+            hideLoader();
             if (data.success) {
                 const message = isUpdate ? 'License updated successfully!' : 'License created successfully!';
                 alert(message);
-                // Close modal and refresh page
-                const modal = bootstrap.Modal.getInstance(document.getElementById('editLicenseModal'));
-                modal.hide();
+                // Refresh page
                 location.reload();
             } else {
                 alert('Error saving license: ' + (data.error || 'Unknown error'));
             }
         })
         .catch(error => {
+            hideLoader();
             console.error('Error:', error);
             alert('Error saving license');
         });
@@ -451,11 +464,14 @@
             return;
         }
         if (confirm('Are you sure you want to delete this license?')) {
+            showLoader('Deleting license...');
+            
             fetch(`/api/license/${licenseId}`, {
                 method: 'DELETE'
             })
             .then(response => response.json())
             .then(data => {
+                hideLoader();
                 if (data.success) {
                     alert('License deleted successfully!');
                     location.reload();
@@ -464,6 +480,7 @@
                 }
             })
             .catch(error => {
+                hideLoader();
                 console.error('Error:', error);
                 alert('Error deleting license');
             });
@@ -481,8 +498,8 @@
                     select.remove(1);
                 }
                 
-                // Add existing types
-                data.types.forEach(type => {
+                // Add existing types (data is already an array)
+                data.forEach(type => {
                     const option = document.createElement('option');
                     option.value = type;
                     option.textContent = type;

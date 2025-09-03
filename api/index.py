@@ -1,16 +1,16 @@
 #!/usr/bin/env python3
 """
-License Dashboard Web Interface - Vercel Serverless Function
-Flask-based web UI for viewing upcoming license expirations
+License Dashboard Web Interface - Vercel Serverless Function (Oracle Version)
+Flask-based web UI for viewing upcoming license expirations using Oracle Database
 """
 
 import os
 import sys
 from flask import Flask, render_template, jsonify, request, flash, redirect, url_for
 from dotenv import load_dotenv
-from supabase import create_client, Client
 from datetime import datetime, timedelta
 import logging
+import oracledb
 
 # Add the project root to the Python path
 sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
@@ -26,86 +26,147 @@ logger = logging.getLogger(__name__)
 app = Flask(__name__, template_folder='../templates')
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-change-this')
 
-# Initialize Supabase client
-supabase_url = os.getenv('SUPABASE_URL')
-supabase_key = os.getenv('SUPABASE_KEY')
+# Oracle configuration
+ORACLE_CONFIG = {
+    'host': os.getenv('ORACLE_HOST'),
+    'port': int(os.getenv('ORACLE_PORT', 1521)),
+    'service': os.getenv('ORACLE_SERVICE_NAME'),
+    'user': os.getenv('ORACLE_USER', 'SYS'),
+    'password': os.getenv('ORACLE_PASSWORD'),
+    'schema': os.getenv('ORACLE_SCHEMA')
+}
 
-if not supabase_url or not supabase_key:
-    logger.error("Supabase configuration missing!")
-
-supabase: Client = create_client(supabase_url, supabase_key) if supabase_url and supabase_key else None
+# Check Oracle configuration
+if not all([ORACLE_CONFIG['host'], ORACLE_CONFIG['password'], ORACLE_CONFIG['schema']]):
+    logger.error("Oracle configuration missing!")
 
 @app.context_processor
 def inject_current_date():
     """Make current date available to all templates"""
     return dict(current_date=datetime.now())
 
-def get_upcoming_expirations():
-    """Get all upcoming license expirations"""
-    if not supabase:
-        return []
+def get_oracle_connection():
+    """Create and return an Oracle database connection"""
     try:
-        result = supabase.table('upcoming_expirations').select('*').execute()
-        return result.data
+        dsn = oracledb.makedsn(
+            ORACLE_CONFIG['host'],
+            ORACLE_CONFIG['port'],
+            service_name=ORACLE_CONFIG['service']
+        )
+        
+        connection = oracledb.connect(
+            user=ORACLE_CONFIG['user'],
+            password=ORACLE_CONFIG['password'],
+            dsn=dsn,
+            mode=oracledb.AUTH_MODE_SYSDBA
+        )
+        
+        return connection
+    except oracledb.Error as e:
+        logger.error(f"Oracle connection error: {e}")
+        raise
+
+def query_oracle(query, params=None):
+    """Execute a query and return results as list of dictionaries"""
+    try:
+        connection = get_oracle_connection()
+        cursor = connection.cursor()
+        
+        if params:
+            cursor.execute(query, params)
+        else:
+            cursor.execute(query)
+        
+        columns = [col[0].lower() for col in cursor.description]
+        results = []
+        
+        for row in cursor:
+            result_dict = {}
+            for i, col in enumerate(columns):
+                value = row[i]
+                # Convert Oracle datetime to Python datetime string for JSON serialization
+                if isinstance(value, datetime):
+                    value = value.isoformat()
+                result_dict[col] = value
+            results.append(result_dict)
+        
+        cursor.close()
+        connection.close()
+        
+        return results
+        
+    except Exception as e:
+        logger.error(f"Query error: {e}")
+        return []
+
+def get_upcoming_expirations():
+    """Get all upcoming license expirations from Oracle"""
+    try:
+        schema = ORACLE_CONFIG['schema']
+        return query_oracle(f"""
+            SELECT * FROM "{schema}".UPCOMING_EXPIRATIONS
+            ORDER BY expiration_date
+        """)
     except Exception as e:
         logger.error(f"Error fetching upcoming expirations: {e}")
         return []
 
 def get_license_statistics():
-    """Get license statistics for dashboard"""
-    if not supabase:
-        return {
+    """Get license statistics for dashboard from Oracle"""
+    try:
+        schema = ORACLE_CONFIG['schema']
+        stats = {
             'total_licenses': 0,
             'upcoming_expirations': 0,
             'critical_count': 0,
             'warning_count': 0,
             'past_due_count': 0
         }
-    try:
-        # Total licenses
-        total_result = supabase.table('licenses').select('id', count='exact').execute()
-        total_licenses = total_result.count
         
-        # Upcoming expirations (next 35 days) - Use consistent logic with filter
-        today = datetime.now().strftime('%Y-%m-%d')
-        cutoff_date_35 = (datetime.now() + timedelta(days=35)).strftime('%Y-%m-%d')
-        upcoming_result = supabase.table('licenses').select('id', count='exact')\
-            .gte('expiration_date', today)\
-            .lte('expiration_date', cutoff_date_35)\
-            .not_.is_('expiration_date', 'null')\
-            .execute()
-        upcoming_count = upcoming_result.count
+        # Total licenses
+        result = query_oracle(f'SELECT COUNT(*) as count FROM "{schema}".LICENSES')
+        if result:
+            stats['total_licenses'] = result[0]['count']
+        
+        # Upcoming expirations (next 35 days)
+        result = query_oracle(f"""
+            SELECT COUNT(*) as count FROM "{schema}".LICENSES
+            WHERE EXPIRATION_DATE IS NOT NULL
+            AND EXPIRATION_DATE >= SYSDATE
+            AND EXPIRATION_DATE <= SYSDATE + 35
+        """)
+        if result:
+            stats['upcoming_expirations'] = result[0]['count']
         
         # Critical (next 10 days)
-        critical_result = supabase.table('licenses').select('id', count='exact')\
-            .gte('expiration_date', datetime.now().strftime('%Y-%m-%d'))\
-            .lte('expiration_date', (datetime.now() + timedelta(days=10)).strftime('%Y-%m-%d'))\
-            .execute()
-        critical_count = critical_result.count
+        result = query_oracle(f"""
+            SELECT COUNT(*) as count FROM "{schema}".LICENSES
+            WHERE EXPIRATION_DATE >= SYSDATE
+            AND EXPIRATION_DATE <= SYSDATE + 10
+        """)
+        if result:
+            stats['critical_count'] = result[0]['count']
         
         # Warning (next 30 days)
-        warning_result = supabase.table('licenses').select('id', count='exact')\
-            .gte('expiration_date', datetime.now().strftime('%Y-%m-%d'))\
-            .lte('expiration_date', (datetime.now() + timedelta(days=30)).strftime('%Y-%m-%d'))\
-            .execute()
-        warning_count = warning_result.count
+        result = query_oracle(f"""
+            SELECT COUNT(*) as count FROM "{schema}".LICENSES
+            WHERE EXPIRATION_DATE >= SYSDATE
+            AND EXPIRATION_DATE <= SYSDATE + 30
+        """)
+        if result:
+            stats['warning_count'] = result[0]['count']
         
         # Past due (expired licenses)
-        past_due_result = supabase.table('licenses').select('id', count='exact')\
-            .lt('expiration_date', datetime.now().strftime('%Y-%m-%d'))\
-            .not_.is_('expiration_date', 'null')\
-            .execute()
-        past_due_count = past_due_result.count
+        result = query_oracle(f"""
+            SELECT COUNT(*) as count FROM "{schema}".OVERDUE_LICENSES
+        """)
+        if result:
+            stats['past_due_count'] = result[0]['count']
         
-        return {
-            'total_licenses': total_licenses,
-            'upcoming_expirations': upcoming_count,
-            'critical_count': critical_count,
-            'warning_count': warning_count,
-            'past_due_count': past_due_count
-        }
+        return stats
+        
     except Exception as e:
-        logger.error(f"Error fetching statistics: {e}")
+        logger.error(f"Error getting statistics: {e}")
         return {
             'total_licenses': 0,
             'upcoming_expirations': 0,
@@ -114,440 +175,301 @@ def get_license_statistics():
             'past_due_count': 0
         }
 
-def get_license_statistics_filtered(upcoming_days=35, critical_days=10, warning_days=30):
-    """Get license statistics for dashboard with custom filter parameters"""
-    if not supabase:
-        return {
-            'total_licenses': 0,
-            'upcoming_expirations': 0,
-            'critical_count': 0,
-            'warning_count': 0,
-            'past_due_count': 0
-        }
+def get_reminder_statistics():
+    """Get reminder statistics from Oracle"""
     try:
-        # Total licenses
-        total_result = supabase.table('licenses').select('id', count='exact').execute()
-        total_licenses = total_result.count
+        schema = ORACLE_CONFIG['schema']
         
-        # Upcoming expirations (custom days)
-        today = datetime.now().strftime('%Y-%m-%d')
-        cutoff_date_upcoming = (datetime.now() + timedelta(days=upcoming_days)).strftime('%Y-%m-%d')
-        upcoming_result = supabase.table('licenses').select('id', count='exact')\
-            .gte('expiration_date', today)\
-            .lte('expiration_date', cutoff_date_upcoming)\
-            .not_.is_('expiration_date', 'null')\
-            .execute()
-        upcoming_count = upcoming_result.count
+        # Get today's reminders
+        today_result = query_oracle(f"""
+            SELECT COUNT(*) as count FROM "{schema}".EMAIL_REMINDERS
+            WHERE TRUNC(SENT_DATE) = TRUNC(SYSDATE)
+        """)
+        today_count = today_result[0]['count'] if today_result else 0
         
-        # Critical (custom days)
-        cutoff_date_critical = (datetime.now() + timedelta(days=critical_days)).strftime('%Y-%m-%d')
-        critical_result = supabase.table('licenses').select('id', count='exact')\
-            .gte('expiration_date', today)\
-            .lte('expiration_date', cutoff_date_critical)\
-            .not_.is_('expiration_date', 'null')\
-            .execute()
-        critical_count = critical_result.count
+        # Get total reminders
+        total_result = query_oracle(f"""
+            SELECT COUNT(*) as count FROM "{schema}".EMAIL_REMINDERS
+        """)
+        total_count = total_result[0]['count'] if total_result else 0
         
-        # Warning (custom days)
-        cutoff_date_warning = (datetime.now() + timedelta(days=warning_days)).strftime('%Y-%m-%d')
-        warning_result = supabase.table('licenses').select('id', count='exact')\
-            .gte('expiration_date', today)\
-            .lte('expiration_date', cutoff_date_warning)\
-            .not_.is_('expiration_date', 'null')\
-            .execute()
-        warning_count = warning_result.count
-        
-        # Past due (expired licenses)
-        past_due_result = supabase.table('licenses').select('id', count='exact')\
-            .lt('expiration_date', today)\
-            .not_.is_('expiration_date', 'null')\
-            .execute()
-        past_due_count = past_due_result.count
+        # Get pending reminders
+        pending_result = query_oracle(f"""
+            SELECT COUNT(*) as count FROM "{schema}".LICENSES_NEEDING_REMINDERS
+        """)
+        pending_count = pending_result[0]['count'] if pending_result else 0
         
         return {
-            'total_licenses': total_licenses,
-            'upcoming_expirations': upcoming_count,
-            'critical_count': critical_count,
-            'warning_count': warning_count,
-            'past_due_count': past_due_count
+            'sent_today': today_count,
+            'total_sent': total_count,
+            'pending': pending_count
         }
+        
     except Exception as e:
-        logger.error(f"Error fetching filtered statistics: {e}")
+        logger.error(f"Error getting reminder statistics: {e}")
         return {
-            'total_licenses': 0,
-            'upcoming_expirations': 0,
-            'critical_count': 0,
-            'warning_count': 0,
-            'past_due_count': 0
+            'sent_today': 0,
+            'total_sent': 0,
+            'pending': 0
         }
-
-def get_all_licenses():
-    """Get all licenses"""
-    if not supabase:
-        return []
-    try:
-        result = supabase.table('licenses').select('*').order('expiration_date').execute()
-        
-        # Add status calculation to each license
-        licenses_with_status = []
-        for license in result.data:
-            license_copy = license.copy()
-            
-            if license_copy.get('expiration_date'):
-                exp_date = datetime.strptime(license_copy['expiration_date'], '%Y-%m-%d')
-                today = datetime.now()
-                days_until = (exp_date - today).days
-                
-                if days_until < 0:
-                    license_copy['status_category'] = 'Expired'
-                    license_copy['status_class'] = 'bg-danger'
-                    license_copy['days_overdue'] = abs(days_until)
-                elif days_until <= 10:
-                    license_copy['status_category'] = 'Critical'
-                    license_copy['status_class'] = 'bg-danger'
-                elif days_until <= 30:
-                    license_copy['status_category'] = 'Warning'
-                    license_copy['status_class'] = 'bg-warning'
-                elif days_until <= 90:
-                    license_copy['status_category'] = 'Active'
-                    license_copy['status_class'] = 'bg-info'
-                else:
-                    license_copy['status_category'] = 'Active'
-                    license_copy['status_class'] = 'bg-success'
-            else:
-                license_copy['status_category'] = 'No Expiration'
-                license_copy['status_class'] = 'bg-secondary'
-            
-            licenses_with_status.append(license_copy)
-        
-        return licenses_with_status
-    except Exception as e:
-        logger.error(f"Error fetching all licenses: {e}")
-        return []
-
-def get_past_due_licenses():
-    """Get all past due licenses"""
-    if not supabase:
-        return []
-    try:
-        result = supabase.table('licenses').select('*')\
-            .lt('expiration_date', datetime.now().strftime('%Y-%m-%d'))\
-            .not_.is_('expiration_date', 'null')\
-            .order('expiration_date')\
-            .execute()
-        
-        # Add days overdue calculation
-        past_due_licenses = []
-        for license in result.data:
-            license_copy = license.copy()
-            if license_copy.get('expiration_date'):
-                exp_date = datetime.strptime(license_copy['expiration_date'], '%Y-%m-%d')
-                days_overdue = (datetime.now() - exp_date).days
-                license_copy['days_overdue'] = days_overdue
-            past_due_licenses.append(license_copy)
-        
-        return past_due_licenses
-    except Exception as e:
-        logger.error(f"Error fetching past due licenses: {e}")
-        return []
-
-def get_sent_reminders():
-    """Get sent reminder history"""
-    if not supabase:
-        return []
-    try:
-        result = supabase.table('email_reminders')\
-            .select('*, licenses(lic_name, lic_type, lic_state, email_enabled)')\
-            .order('sent_date', desc=True)\
-            .limit(50)\
-            .execute()
-        return result.data
-    except Exception as e:
-        logger.error(f"Error fetching reminders: {e}")
-        return []
 
 @app.route('/')
 def dashboard():
-    """Main dashboard page"""
-    filter_upcoming = request.args.get('upcoming_days', 35)
-    filter_critical = request.args.get('critical_days', 10)
-    filter_warning = request.args.get('warning_days', 30)
-
-    stats = get_license_statistics_filtered(
-        upcoming_days=int(filter_upcoming),
-        critical_days=int(filter_critical),
-        warning_days=int(filter_warning)
-    )
-    upcoming = get_upcoming_expirations()
-    past_due = get_past_due_licenses()
-    
-    # Categorize upcoming expirations
-    critical = []
-    warning = []
-    normal = []
-    
-    for license in upcoming:
-        days_until = license.get('days_until_expiration', 0)
-        if days_until <= int(filter_critical): # Use filter_critical for critical
-            critical.append(license)
-        elif days_until <= int(filter_warning): # Use filter_warning for warning
-            warning.append(license)
-        else:
-            normal.append(license)
-    
-    return render_template('dashboard.html', 
-                         stats=stats,
-                         critical=critical,
-                         warning=warning,
-                         normal=normal,
-                         past_due=past_due,
-                         filter_upcoming=filter_upcoming,
-                         filter_critical=filter_critical,
-                         filter_warning=filter_warning)
+    """Main dashboard showing overview statistics"""
+    try:
+        stats = get_license_statistics()
+        reminder_stats = get_reminder_statistics()
+        schema = ORACLE_CONFIG['schema']
+        
+        # Get critical upcoming expirations
+        critical_licenses = query_oracle(f"""
+            SELECT * FROM (
+                SELECT * FROM "{schema}".UPCOMING_EXPIRATIONS
+                WHERE status_category IN ('critical', 'warning')
+                ORDER BY expiration_date
+            ) WHERE ROWNUM <= 10
+        """)
+        
+        return render_template('dashboard.html', 
+                             stats=stats,
+                             reminder_stats=reminder_stats,
+                             critical_licenses=critical_licenses)
+    except Exception as e:
+        logger.error(f"Dashboard error: {e}")
+        flash('Error loading dashboard. Database may not be configured.', 'danger')
+        return render_template('dashboard.html', 
+                             stats={'total_licenses': 0, 'upcoming_expirations': 0, 'critical_count': 0, 'warning_count': 0, 'past_due_count': 0},
+                             reminder_stats={'sent_today': 0, 'total_sent': 0, 'pending': 0},
+                             critical_licenses=[])
 
 @app.route('/licenses')
 def licenses():
-    """All licenses page with optional filtering"""
-    filter_type = request.args.get('filter', None)
-    
-    # Get custom filter parameters, with defaults
-    upcoming_days = int(request.args.get('upcoming_days', 35))
-    critical_days = int(request.args.get('critical_days', 10))
-    warning_days = int(request.args.get('warning_days', 30))
-    
-    all_licenses = get_all_licenses()
-    
-    # Apply filtering based on the filter parameter
-    if filter_type == 'critical':
-        # Show licenses expiring in next critical_days
-        from datetime import datetime, timedelta
-        cutoff_date = (datetime.now() + timedelta(days=critical_days)).strftime('%Y-%m-%d')
-        today = datetime.now().strftime('%Y-%m-%d')
-        filtered_licenses = [
-            license for license in all_licenses 
-            if license.get('expiration_date') and license['expiration_date'] <= cutoff_date and license['expiration_date'] >= today
-        ]
-        page_title = f"Critical Licenses (Expiring in {critical_days} Days)"
-    elif filter_type == 'warning':
-        # Show licenses expiring in next warning_days (but not critical)
-        from datetime import datetime, timedelta
-        cutoff_date_warning = (datetime.now() + timedelta(days=warning_days)).strftime('%Y-%m-%d')
-        cutoff_date_critical = (datetime.now() + timedelta(days=critical_days)).strftime('%Y-%m-%d')
-        today = datetime.now().strftime('%Y-%m-%d')
-        filtered_licenses = [
-            license for license in all_licenses 
-            if license.get('expiration_date') and license['expiration_date'] <= cutoff_date_warning and license['expiration_date'] > cutoff_date_critical and license['expiration_date'] >= today
-        ]
-        page_title = f"Warning Licenses (Expiring in {critical_days+1}-{warning_days} Days)"
-    elif filter_type == 'upcoming':
-        # Show licenses expiring in next upcoming_days
-        from datetime import datetime, timedelta
-        cutoff_date = (datetime.now() + timedelta(days=upcoming_days)).strftime('%Y-%m-%d')
-        today = datetime.now().strftime('%Y-%m-%d')
-        filtered_licenses = [
-            license for license in all_licenses 
-            if license.get('expiration_date') and license['expiration_date'] <= cutoff_date and license['expiration_date'] >= today
-        ]
-        page_title = f"Upcoming Expirations (Next {upcoming_days} Days)"
-    elif filter_type == 'past_due':
-        # Show past due licenses
-        from datetime import datetime
-        today = datetime.now().strftime('%Y-%m-%d')
-        filtered_licenses = [
-            license for license in all_licenses 
-            if license.get('expiration_date') and license['expiration_date'] < today
-        ]
-        # Add days overdue calculation
-        for license in filtered_licenses:
-            if license.get('expiration_date'):
-                exp_date = datetime.strptime(license['expiration_date'], '%Y-%m-%d')
-                days_overdue = (datetime.now() - exp_date).days
-                license['days_overdue'] = days_overdue
-        page_title = "Past Due Licenses (Expired)"
-    else:
-        filtered_licenses = all_licenses
-        page_title = "All Licenses"
-    
-    return render_template('licenses.html', 
-                         licenses=filtered_licenses, 
-                         filter_type=filter_type,
-                         page_title=page_title,
-                         upcoming_days=upcoming_days,
-                         critical_days=critical_days,
-                         warning_days=warning_days)
+    """View all licenses with filtering options"""
+    try:
+        schema = ORACLE_CONFIG['schema']
+        
+        # Get filter parameter
+        filter_type = request.args.get('filter', 'upcoming')
+        
+        if filter_type == 'all':
+            # Get all licenses
+            all_licenses = query_oracle(f"""
+                SELECT 
+                    LIC_ID as id,
+                    LIC_NAME as lic_name,
+                    LIC_STATE as lic_state,
+                    LIC_TYPE as lic_type,
+                    LIC_NO as lic_no,
+                    ASCEM_NO as ascem_no,
+                    FIRST_ISSUE_DATE as first_issue_date,
+                    EXPIRATION_DATE as expiration_date,
+                    LIC_NOTIFY_NAMES as lic_notify_names
+                FROM "{schema}".LICENSES
+                ORDER BY EXPIRATION_DATE NULLS LAST, LIC_NAME
+            """)
+        elif filter_type == 'expired':
+            # Get expired licenses
+            all_licenses = query_oracle(f"""
+                SELECT 
+                    id,
+                    lic_name,
+                    lic_state,
+                    lic_type,
+                    lic_no,
+                    ascem_no,
+                    first_issue_date,
+                    expiration_date,
+                    lic_notify_names,
+                    days_overdue
+                FROM "{schema}".OVERDUE_LICENSES
+                ORDER BY expiration_date DESC
+            """)
+        else:  # upcoming (default)
+            # Get upcoming expirations (next 35 days)
+            all_licenses = query_oracle(f"""
+                SELECT 
+                    id,
+                    lic_name,
+                    lic_state,
+                    lic_type,
+                    lic_no,
+                    ascem_no,
+                    first_issue_date,
+                    expiration_date,
+                    lic_notify_names,
+                    days_until_expiration,
+                    status_category
+                FROM "{schema}".UPCOMING_EXPIRATIONS
+                WHERE days_until_expiration <= 35
+                ORDER BY expiration_date
+            """)
+        
+        # Process licenses to add display information
+        processed_licenses = []
+        for license in all_licenses:
+            license_copy = license.copy()
+            
+            # Add status class for display
+            if license.get('status_category'):
+                if license['status_category'] == 'critical':
+                    license_copy['status_class'] = 'bg-danger'
+                elif license['status_category'] == 'warning':
+                    license_copy['status_class'] = 'bg-warning'
+                elif license['status_category'] == 'upcoming':
+                    license_copy['status_class'] = 'bg-info'
+                else:
+                    license_copy['status_class'] = 'bg-success'
+            elif license.get('days_overdue'):
+                license_copy['status_class'] = 'bg-danger'
+                license_copy['status_category'] = 'expired'
+            elif license.get('expiration_date'):
+                # Calculate days until expiration for 'all' filter
+                if isinstance(license['expiration_date'], str):
+                    exp_date = datetime.fromisoformat(license['expiration_date'])
+                else:
+                    exp_date = license['expiration_date']
+                
+                days_until = (exp_date - datetime.now()).days
+                license_copy['days_until_expiration'] = days_until
+                
+                if days_until < 0:
+                    license_copy['status_class'] = 'bg-danger'
+                    license_copy['status_category'] = 'expired'
+                elif days_until <= 10:
+                    license_copy['status_class'] = 'bg-danger'
+                    license_copy['status_category'] = 'critical'
+                elif days_until <= 30:
+                    license_copy['status_class'] = 'bg-warning'
+                    license_copy['status_category'] = 'warning'
+                elif days_until <= 60:
+                    license_copy['status_class'] = 'bg-info'
+                    license_copy['status_category'] = 'upcoming'
+                else:
+                    license_copy['status_class'] = 'bg-success'
+                    license_copy['status_category'] = 'normal'
+            else:
+                license_copy['status_class'] = 'bg-secondary'
+                license_copy['status_category'] = 'no_expiration'
+            
+            processed_licenses.append(license_copy)
+        
+        return render_template('licenses.html', 
+                             licenses=processed_licenses,
+                             filter_type=filter_type)
+    except Exception as e:
+        logger.error(f"Licenses page error: {e}")
+        flash('Error loading licenses. Database may not be configured.', 'danger')
+        return render_template('licenses.html', 
+                             licenses=[],
+                             filter_type='upcoming')
 
 @app.route('/reminders')
 def reminders():
-    """Reminder history page"""
-    sent_reminders = get_sent_reminders()
-    return render_template('reminders.html', reminders=sent_reminders)
-
-@app.route('/api/upcoming')
-def api_upcoming():
-    """API endpoint for upcoming expirations"""
-    upcoming = get_upcoming_expirations()
-    return jsonify(upcoming)
+    """View reminder history and pending reminders"""
+    try:
+        schema = ORACLE_CONFIG['schema']
+        
+        # Get reminder history
+        reminder_history = query_oracle(f"""
+            SELECT 
+                er.ID,
+                er.LICENSE_ID,
+                l.LIC_NAME,
+                l.LIC_TYPE,
+                er.REMINDER_TYPE,
+                er.SENT_DATE,
+                er.EMAIL_TO,
+                er.STATUS
+            FROM "{schema}".EMAIL_REMINDERS er
+            LEFT JOIN "{schema}".LICENSES l ON er.LICENSE_ID = l.LIC_ID
+            ORDER BY er.SENT_DATE DESC
+        """)
+        
+        # Get licenses needing reminders
+        licenses_needing = query_oracle(f"""
+            SELECT * FROM "{schema}".LICENSES_NEEDING_REMINDERS
+            ORDER BY days_until_expiration
+        """)
+        
+        return render_template('reminders.html',
+                             reminder_history=reminder_history,
+                             licenses_needing=licenses_needing)
+    except Exception as e:
+        logger.error(f"Reminders page error: {e}")
+        flash('Error loading reminders. Database may not be configured.', 'danger')
+        return render_template('reminders.html',
+                             reminder_history=[],
+                             licenses_needing=[])
 
 @app.route('/api/stats')
 def api_stats():
-    """API endpoint for statistics"""
-    stats = get_license_statistics()
-    return jsonify(stats)
-
-@app.route('/api/license/<int:license_id>')
-def api_license_detail(license_id):
-    """API endpoint for license details"""
-    if not supabase:
-        return jsonify({'error': 'Database not configured'}), 500
+    """API endpoint returning dashboard statistics in JSON"""
     try:
-        result = supabase.table('licenses').select('*').eq('id', license_id).execute()
-        if result.data:
-            return jsonify(result.data[0])
-        else:
-            return jsonify({'error': 'License not found'}), 404
+        stats = get_license_statistics()
+        reminder_stats = get_reminder_statistics()
+        
+        # Combine all statistics
+        all_stats = {**stats, **reminder_stats}
+        
+        return jsonify(all_stats)
     except Exception as e:
+        logger.error(f"API stats error: {e}")
+        return jsonify({'error': 'Database not configured'}), 500
+
+@app.route('/api/upcoming')
+def api_upcoming():
+    """API endpoint returning upcoming expirations in JSON"""
+    try:
+        schema = ORACLE_CONFIG['schema']
+        days = request.args.get('days', 35, type=int)
+        
+        upcoming = query_oracle(f"""
+            SELECT * FROM "{schema}".UPCOMING_EXPIRATIONS
+            WHERE days_until_expiration <= :days
+            ORDER BY expiration_date
+        """, {'days': days})
+        
+        return jsonify(upcoming)
+    except Exception as e:
+        logger.error(f"API upcoming error: {e}")
+        return jsonify({'error': 'Database not configured'}), 500
+
+@app.route('/api/licenses-needing-reminders')
+def api_licenses_needing_reminders():
+    """API endpoint for licenses needing reminders"""
+    try:
+        schema = ORACLE_CONFIG['schema']
+        
+        licenses = query_oracle(f"""
+            SELECT * FROM "{schema}".LICENSES_NEEDING_REMINDERS
+            ORDER BY days_until_expiration
+        """)
+        
+        return jsonify(licenses)
+    except Exception as e:
+        logger.error(f"API licenses needing reminders error: {e}")
         return jsonify({'error': str(e)}), 500
 
-@app.route('/api/license/<int:license_id>', methods=['PUT'])
-def api_update_license(license_id):
-    """API endpoint to update license information"""
-    if not supabase:
-        return jsonify({'error': 'Database not configured'}), 500
+@app.route('/health')
+def health():
+    """Health check endpoint for monitoring"""
     try:
-        data = request.get_json()
+        # Test Oracle connection
+        connection = get_oracle_connection()
+        connection.close()
         
-        # Validate required fields
-        required_fields = ['lic_name', 'lic_type', 'lic_state']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'error': f'{field} is required'}), 400
-        
-        # Update the license
-        result = supabase.table('licenses').update(data).eq('id', license_id).execute()
-        
-        if result.data:
-            return jsonify({'success': True, 'message': 'License updated successfully', 'data': result.data[0]})
-        else:
-            return jsonify({'error': 'License not found or update failed'}), 404
-            
+        return jsonify({
+            'status': 'healthy',
+            'database': 'connected',
+            'timestamp': datetime.now().isoformat()
+        })
     except Exception as e:
-        logger.error(f"Error updating license {license_id}: {e}")
-        return jsonify({'error': str(e)}), 500
+        return jsonify({
+            'status': 'unhealthy',
+            'database': 'disconnected',
+            'error': str(e),
+            'timestamp': datetime.now().isoformat()
+        }), 500
 
-@app.route('/api/license', methods=['POST'])
-def api_create_license():
-    """API endpoint to create a new license"""
-    if not supabase:
-        return jsonify({'error': 'Database not configured'}), 500
-    try:
-        data = request.get_json()
-        
-        # Validate required fields
-        required_fields = ['lic_name', 'lic_type', 'lic_state']
-        for field in required_fields:
-            if not data.get(field):
-                return jsonify({'error': f'{field} is required'}), 400
-        
-        # Remove id from data if it exists (let the database auto-generate it)
-        if 'id' in data:
-            del data['id']
-        
-        # Create the license
-        result = supabase.table('licenses').insert(data).execute()
-        
-        if result.data:
-            return jsonify({'success': True, 'message': 'License created successfully', 'data': result.data[0]})
-        else:
-            return jsonify({'error': 'Failed to create license'}), 400
-            
-    except Exception as e:
-        logger.error(f"Error creating license: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/license/<int:license_id>', methods=['DELETE'])
-def api_delete_license(license_id):
-    """API endpoint to delete a license"""
-    if not supabase:
-        return jsonify({'error': 'Database not configured'}), 500
-    try:
-        # Delete the license
-        result = supabase.table('licenses').delete().eq('id', license_id).execute()
-        
-        if result.data:
-            return jsonify({'success': True, 'message': 'License deleted successfully'})
-        else:
-            return jsonify({'error': 'License not found or delete failed'}), 404
-            
-    except Exception as e:
-        logger.error(f"Error deleting license {license_id}: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/license-types')
-def api_license_types():
-    """API endpoint to get distinct license types"""
-    if not supabase:
-        return jsonify({'error': 'Database not configured'}), 500
-    try:
-        result = supabase.table('licenses').select('lic_type').execute()
-        
-        # Get unique types, filter out None/empty values
-        types = set()
-        for item in result.data:
-            if item.get('lic_type') and item['lic_type'].strip():
-                types.add(item['lic_type'].strip())
-        
-        return jsonify({'types': sorted(list(types))})
-        
-    except Exception as e:
-        logger.error(f"Error fetching license types: {e}")
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/api/license/<int:license_id>/toggle-emails', methods=['POST'])
-def api_toggle_license_emails(license_id):
-    """API endpoint to toggle email notifications for a license"""
-    if not supabase:
-        return jsonify({'error': 'Database not configured'}), 500
-    try:
-        # Get current email_enabled status
-        result = supabase.table('licenses').select('email_enabled, lic_name').eq('id', license_id).execute()
-        
-        if not result.data:
-            return jsonify({'error': 'License not found'}), 404
-        
-        current_status = result.data[0].get('email_enabled', True)
-        license_name = result.data[0].get('lic_name', 'Unknown')
-        new_status = not current_status
-        
-        # Update the email_enabled status
-        update_result = supabase.table('licenses').update({
-            'email_enabled': new_status
-        }).eq('id', license_id).execute()
-        
-        if update_result.data:
-            action = "enabled" if new_status else "disabled"
-            return jsonify({
-                'success': True, 
-                'message': f'Email notifications {action} for {license_name}',
-                'email_enabled': new_status,
-                'license_name': license_name
-            })
-        else:
-            return jsonify({'error': 'Failed to update email status'}), 400
-            
-    except Exception as e:
-        logger.error(f"Error toggling email status for license {license_id}: {e}")
-        return jsonify({'error': str(e)}), 500
-
-# Export the Flask app for Vercel
-# This is the key - Vercel looks for an 'app' variable
-# No need for a custom handler function
-
-# For local development
-if __name__ == '__main__':
-    port = int(os.getenv('PORT', 5000))
-    debug = os.getenv('FLASK_DEBUG', 'False').lower() == 'true'
-    
-    print(f"Starting License Dashboard on http://localhost:{port}")
-    print("Press Ctrl+C to stop the server")
-    
-    app.run(host='0.0.0.0', port=port, debug=debug) 
+# Handler for Vercel
+handler = app

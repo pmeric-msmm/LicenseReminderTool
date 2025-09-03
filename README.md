@@ -1,22 +1,26 @@
 # License Reminder System
 
-An automated license expiration reminder system that sends email notifications 30, 15, and 10 days before license expiration dates. The system uses Supabase as the database backend and supports Excel file import.
+An automated license expiration reminder system that sends email notifications 60, 30, 15, 7, and 1 day before license expiration dates. The system uses Oracle Database as the backend and supports Excel file import.
 
 ## Features
 
-- ✅ **Excel Import**: Upload license data from Excel files to Supabase
-- ✅ **Automated Reminders**: Send emails 30, 15, and 10 days before expiration
+- ✅ **Oracle Database Integration**: Uses Oracle Database for reliable data storage
+- ✅ **Excel Import**: Upload license data from Excel files to Oracle
+- ✅ **Automated Reminders**: Send emails 60, 30, 15, 7, and 1 day before expiration
 - ✅ **Email Tracking**: Track sent reminders to avoid duplicates
 - ✅ **Flexible Email Support**: Support for multiple email addresses per license
 - ✅ **Comprehensive Logging**: Detailed logs for monitoring and debugging
 - ✅ **Scheduler**: Automated daily checks for upcoming expirations
 - ✅ **Database Views**: Smart queries to identify licenses needing reminders
+- ✅ **Web Dashboard**: Flask-based web interface for viewing license data
+- ✅ **Vercel Deployment Ready**: Serverless function support for cloud deployment
 
 ## System Requirements
 
 - Python 3.7 or higher
-- Supabase account
+- Oracle Database (XE or Enterprise Edition)
 - Email account with SMTP access (Gmail recommended)
+- Virtual environment (recommended)
 
 ## Quick Start
 
@@ -24,20 +28,27 @@ An automated license expiration reminder system that sends email notifications 3
 
 ```bash
 # Clone or download the project files
-# Ensure you have licenses.xlsx in the project directory
+# Create and activate virtual environment
+python3 -m venv .venv
+source .venv/bin/activate  # On Windows: .venv\Scripts\activate
 
-# Run the setup script
-python3 setup.py
+# Install dependencies
+pip install -r requirements.txt
 ```
 
 ### 2. Configure Environment Variables
 
-Edit the `.env` file created by the setup script:
+Edit the `.env` file with your Oracle and email credentials:
 
 ```env
-# Supabase Configuration
-SUPABASE_URL=https://your-project.supabase.co
-SUPABASE_KEY=your_supabase_anon_key
+# Oracle Database Configuration
+ORACLE_HOST=msmm-dashboard.maxapex.net
+ORACLE_PORT=1521
+ORACLE_SERVICE_NAME=XEPDB1
+ORACLE_USER=SYS
+ORACLE_PASSWORD=your_oracle_password
+ORACLE_SCHEMA=MSMM DASHBOARD
+ORACLE_TABLE=LICENSES
 
 # Email Configuration
 SMTP_SERVER=smtp.gmail.com
@@ -55,33 +66,78 @@ TIMEZONE=America/Chicago
 COMPANY_NAME=MSMM Engineering
 COMPANY_WEBSITE=https://www.msmmeng.com
 SUPPORT_EMAIL=support@msmmeng.com
+
+# Flask Configuration (for web dashboard)
+FLASK_SECRET_KEY=your-secret-key-change-this
+FLASK_DEBUG=false
 ```
 
-### 3. Set Up Supabase Database
+### 3. Set Up Oracle Database
 
-1. Create a new Supabase project at [supabase.com](https://supabase.com)
-2. Copy your project URL and anon key to the `.env` file
-3. In the Supabase SQL editor, run the commands from `supabase_schema.sql`
+Run the setup script to create necessary tables and views:
+
+```bash
+python run_oracle_setup.py
+```
+
+This will create:
+- `EMAIL_REMINDERS` table for tracking sent emails
+- `LICENSES_NEEDING_REMINDERS` view for identifying licenses requiring reminders
+- `OVERDUE_LICENSES` view for expired licenses
+- `UPCOMING_EXPIRATIONS` view for licenses expiring soon
 
 ### 4. Upload License Data
 
 ```bash
-python3 license_reminder_system.py upload
+python license_reminder_oracle.py upload
 ```
 
 ### 5. Test the System
 
 ```bash
+# Check system statistics
+python license_reminder_oracle.py stats
+
 # Run a one-time check for reminders
-python3 license_reminder_system.py check
+python license_reminder_oracle.py check
 ```
 
 ### 6. Start Automated Scheduler
 
 ```bash
 # Start the daily scheduler (runs at 9:00 AM daily)
-python3 license_reminder_system.py schedule
+python license_reminder_oracle.py schedule
 ```
+
+## Web Dashboard
+
+### Local Development
+
+```bash
+# Run the Flask web dashboard
+python web_dashboard_oracle.py
+
+# Access at http://localhost:8080
+# Or specify a custom port:
+PORT=5000 python web_dashboard_oracle.py
+```
+
+### Vercel Deployment
+
+The application is ready for serverless deployment on Vercel:
+
+1. Push your code to GitHub
+2. Import the project in Vercel
+3. Set environment variables in Vercel dashboard
+4. Deploy
+
+The API endpoints will be available at:
+- `/` - Main dashboard
+- `/licenses` - View all licenses
+- `/reminders` - Reminder history
+- `/api/stats` - JSON statistics
+- `/api/upcoming` - Upcoming expirations
+- `/health` - Health check endpoint
 
 ## Excel File Format
 
@@ -109,49 +165,49 @@ john@company.com, jane@company.com, admin@company.com
 
 ## Database Schema
 
-The system creates two main tables:
+### Oracle Tables
 
-### `licenses` Table
-- Stores all license information from the Excel file
-- Includes timestamps for tracking updates
-- Primary key: `id` (auto-generated)
-- Unique constraint on `lic_id`
+#### `LICENSES` Table
+- Stores all license information from Excel
+- Primary key: `LIC_ID`
+- Includes embedding columns for future AI features
 
-### `email_reminders` Table
+#### `EMAIL_REMINDERS` Table
 - Tracks all sent reminders
 - Prevents duplicate reminders on the same day
-- Links to licenses table via foreign key
+- Links to licenses via `LICENSE_ID`
 - Stores email content and delivery status
 
-### Useful Views
-- `upcoming_expirations`: Licenses expiring in the next 35 days
-- `licenses_needing_reminders`: Licenses requiring reminders today
+### Oracle Views
+
+- `UPCOMING_EXPIRATIONS`: Licenses expiring in the next 90 days
+- `LICENSES_NEEDING_REMINDERS`: Licenses requiring reminders today
+- `OVERDUE_LICENSES`: Expired licenses
 
 ## Usage Commands
 
-### Upload Excel Data
-```bash
-python3 license_reminder_system.py upload
-```
-- Reads the Excel file specified in EXCEL_FILE_PATH
-- Inserts new records and updates existing ones
-- Avoids duplicates based on LIC_ID
+### Oracle Version Commands
 
-### Run One-Time Check
 ```bash
-python3 license_reminder_system.py check
-```
-- Checks for licenses needing reminders today
-- Sends emails immediately
-- Useful for testing and manual runs
+# Upload Excel data
+python license_reminder_oracle.py upload
 
-### Start Scheduler
-```bash
-python3 license_reminder_system.py schedule
+# Check statistics
+python license_reminder_oracle.py stats
+
+# Run one-time reminder check
+python license_reminder_oracle.py check
+
+# Start automated scheduler
+python license_reminder_oracle.py schedule
 ```
-- Starts the automated daily scheduler
-- Runs reminder checks at 9:00 AM daily
-- Continues running until stopped (Ctrl+C)
+
+### Web Dashboard
+
+```bash
+# Run local web dashboard
+python web_dashboard_oracle.py
+```
 
 ## Email Configuration
 
@@ -173,30 +229,66 @@ Update the SMTP settings in `.env`:
 
 ## Logging
 
-The system creates detailed logs in `license_reminders.log`:
-
+The system creates detailed logs:
+- `license_reminders_oracle.log` - Oracle version logs
 - All operations (upload, reminder checks, email sending)
 - Errors and exceptions
 - Timestamp for each action
 - Email delivery confirmations
 
+### Checking Logs
+
+```bash
+# View recent log entries
+tail -f license_reminders_oracle.log
+
+# View all logs
+cat license_reminders_oracle.log
+```
+
+## Database Queries
+
+### Oracle SQL Queries
+
+```sql
+-- Check upcoming expirations
+SELECT * FROM "MSMM DASHBOARD".UPCOMING_EXPIRATIONS;
+
+-- View sent reminders
+SELECT * FROM "MSMM DASHBOARD".EMAIL_REMINDERS 
+ORDER BY SENT_DATE DESC;
+
+-- Check licenses without email addresses
+SELECT * FROM "MSMM DASHBOARD".LICENSES 
+WHERE LIC_NOTIFY_NAMES IS NULL;
+
+-- Check licenses needing reminders
+SELECT * FROM "MSMM DASHBOARD".LICENSES_NEEDING_REMINDERS;
+```
+
 ## Troubleshooting
 
 ### Common Issues
 
-**"No module named 'supabase'"**
+**"No module named 'oracledb'"**
 ```bash
-pip3 install -r requirements.txt
+pip install -r requirements.txt
+# or
+pip install oracledb
 ```
+
+**"ORA-01017: invalid credential"**
+- Verify Oracle username and password in `.env`
+- Ensure using SYS user with SYSDBA privileges
+- Check if account is locked
+
+**"ORA-00942: table or view does not exist"**
+- Run `python run_oracle_setup.py` to create views
+- Check schema name (note: "MSMM DASHBOARD" has a space)
 
 **"Missing required environment variables"**
 - Check that `.env` file exists and contains all required values
-- Ensure SUPABASE_URL, SUPABASE_KEY, EMAIL_USERNAME, EMAIL_PASSWORD, and FROM_EMAIL are set
-
-**"Error uploading Excel data"**
-- Verify Excel file exists and is readable
-- Check Supabase URL and API key
-- Ensure database schema has been created
+- Ensure ORACLE_HOST, ORACLE_PASSWORD, EMAIL_USERNAME, EMAIL_PASSWORD are set
 
 **"Email sending failed"**
 - Verify SMTP settings
@@ -204,36 +296,8 @@ pip3 install -r requirements.txt
 - Check firewall/network restrictions
 
 **"No licenses need reminders today"**
-- This is normal if no licenses are expiring in 30, 15, or 10 days
-- Check the `upcoming_expirations` view in Supabase to see upcoming expirations
-
-### Checking Logs
-
-```bash
-# View recent log entries
-tail -f license_reminders.log
-
-# View all logs
-cat license_reminders.log
-```
-
-## Database Queries
-
-### Check Upcoming Expirations
-```sql
-SELECT * FROM upcoming_expirations;
-```
-
-### View Sent Reminders
-```sql
-SELECT * FROM email_reminders ORDER BY sent_date DESC;
-```
-
-### Check Licenses Without Email Addresses
-```sql
-SELECT * FROM licenses 
-WHERE lic_notify_names IS NULL OR lic_notify_names = '';
-```
+- This is normal if no licenses match reminder criteria (60, 30, 15, 7, 1 days)
+- Check the `UPCOMING_EXPIRATIONS` view to see upcoming expirations
 
 ## Production Deployment
 
@@ -243,14 +307,15 @@ Create a service file `/etc/systemd/system/license-reminders.service`:
 
 ```ini
 [Unit]
-Description=License Reminder System
+Description=License Reminder System (Oracle)
 After=network.target
 
 [Service]
 Type=simple
 User=your_user
 WorkingDirectory=/path/to/license-reminder-system
-ExecStart=/usr/bin/python3 license_reminder_system.py schedule
+Environment="PATH=/path/to/.venv/bin"
+ExecStart=/path/to/.venv/bin/python license_reminder_oracle.py schedule
 Restart=always
 RestartSec=10
 
@@ -272,40 +337,59 @@ Add a daily cron job:
 crontab -e
 
 # Add this line for daily 9 AM execution
-0 9 * * * cd /path/to/license-reminder-system && python3 license_reminder_system.py check
+0 9 * * * cd /path/to/license-reminder-system && /path/to/.venv/bin/python license_reminder_oracle.py check
 ```
 
 ## Security Considerations
 
 - Store sensitive credentials in environment variables, not in code
-- Use Supabase Row Level Security (RLS) policies for data protection
-- Regularly rotate API keys and passwords
+- Use Oracle database security features (user roles, privileges)
+- Regularly rotate passwords and API keys
 - Monitor logs for unauthorized access attempts
-- Use HTTPS for all Supabase connections
+- Use secure connections (SSL/TLS) when possible
+- Never commit `.env` file to version control
 
-## Contributing
+## File Structure
 
-To contribute to this project:
+```
+LicenseReminderTool/
+├── api/
+│   └── index.py              # Vercel serverless function (Oracle)
+├── templates/
+│   ├── base.html            # Base template
+│   ├── dashboard.html       # Dashboard view
+│   ├── licenses.html        # Licenses view
+│   └── reminders.html       # Reminders view
+├── license_reminder_oracle.py    # Main Oracle reminder system
+├── web_dashboard_oracle.py       # Flask web dashboard
+├── run_oracle_setup.py          # Oracle setup script
+├── oracle_setup.sql             # Oracle DDL scripts
+├── requirements.txt             # Python dependencies
+├── vercel.json                  # Vercel configuration
+├── .env                         # Environment variables (not in git)
+└── README.md                    # This file
+```
 
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
+## Migration from Supabase
+
+If migrating from the Supabase version:
+1. Export data from Supabase using the Excel export feature
+2. Update `.env` with Oracle credentials
+3. Run `python run_oracle_setup.py` to set up Oracle
+4. Run `python license_reminder_oracle.py upload` to import data
 
 ## Support
 
 For questions or issues:
 
 1. Check the troubleshooting section above
-2. Review the logs in `license_reminders.log`
+2. Review the logs in `license_reminders_oracle.log`
 3. Verify your configuration in `.env`
-4. Check Supabase dashboard for database issues
+4. Check Oracle database connectivity
+5. Ensure all required views are created
 
 ## License
 
-This project is provided as-is for internal use. Modify and distribute according to your organization's requirements. 
+This project is provided as-is for internal use. Modify and distribute according to your organization's requirements.
 
-
-
-PORT=8080 python3 web_dashboard.py
+PORT=5555 python web_dashboard_oracle.py
