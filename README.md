@@ -42,17 +42,17 @@ Edit the `.env` file with your Oracle and email credentials:
 
 ```env
 # Oracle Database Configuration
-ORACLE_HOST=msmm-dashboard.maxapex.net
-ORACLE_PORT=1521
-ORACLE_SERVICE_NAME=XEPDB1
+ORACLE_HOST=xxxxxxxxxx.xxxxxx.net
+ORACLE_PORT=xxxx
+ORACLE_SERVICE_NAME=xxxx
 ORACLE_USER=SYS
 ORACLE_PASSWORD=your_oracle_password
-ORACLE_SCHEMA=MSMM DASHBOARD
+ORACLE_SCHEMA=xxxxxxx
 ORACLE_TABLE=LICENSES
 
 # Email Configuration
 SMTP_SERVER=smtp.gmail.com
-SMTP_PORT=587
+SMTP_PORT=xxx
 EMAIL_USERNAME=your_email@gmail.com
 EMAIL_PASSWORD=your_app_password
 FROM_EMAIL=your_email@gmail.com
@@ -63,7 +63,7 @@ EXCEL_FILE_PATH=licenses.xlsx
 TIMEZONE=America/Chicago
 
 # Company Information
-COMPANY_NAME=MSMM Engineering
+COMPANY_NAME=xxxxxx
 COMPANY_WEBSITE=https://www.msmmeng.com
 SUPPORT_EMAIL=support@msmmeng.com
 
