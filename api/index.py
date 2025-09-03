@@ -154,7 +154,7 @@ def dashboard():
         
         # Get filter parameters with defaults
         filter_upcoming = int(request.args.get('upcoming_days', 60))
-        filter_critical = int(request.args.get('critical_days', 7))
+        filter_critical = int(request.args.get('critical_days', 7))  # Default to 7 days for critical
         filter_warning = int(request.args.get('warning_days', 30))
         
         # Get statistics
