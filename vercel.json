@@ -1,28 +1,23 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.py": {
-      "runtime": "python3.9",
-      "includeFiles": "templates/**",
-      "maxDuration": 30
-    },
-    "api/cron.py": {
-      "runtime": "python3.9",
-      "maxDuration": 30
+  "builds": [
+    {
+      "src": "api/*.py",
+      "use": "@vercel/python"
     }
-  },
-  "rewrites": [
+  ],
+  "routes": [
     {
-      "source": "/static/(.*)",
-      "destination": "/static/$1"
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
     },
     {
-      "source": "/api/cron/check-reminders",
-      "destination": "/api/cron"
+      "src": "/api/cron/check-reminders",
+      "dest": "/api/cron.py"
     },
     {
-      "source": "/(.*)",
-      "destination": "/api/"
+      "src": "/(.*)",
+      "dest": "/api/index.py"
     }
   ],
   "crons": [
