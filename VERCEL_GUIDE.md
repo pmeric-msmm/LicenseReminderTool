@@ -77,12 +77,12 @@ This is the **MOST IMPORTANT** step. Click on **"Environment Variables"** and ad
 ### 5.1 Oracle Database Variables (REQUIRED)
 | Variable Name | Value | Description |
 |--------------|--------|-------------|
-| `ORACLE_HOST` | `msmm-dashboard.maxapex.net` | Your Oracle host |
-| `ORACLE_PORT` | `1521` | Oracle port (usually 1521) |
-| `ORACLE_SERVICE_NAME` | `XEPDB1` | Your Oracle service name |
+| `ORACLE_HOST` | `xxxxxxxxxx.xxxxxx.net` | Your Oracle host |
+| `ORACLE_PORT` | `xxx1` | Oracle port (usually 1521) |
+| `ORACLE_SERVICE_NAME` | `xxxxx` | Your Oracle service name |
 | `ORACLE_USER` | `SYS` | Oracle username |
 | `ORACLE_PASSWORD` | `[Your Password]` | Oracle password |
-| `ORACLE_SCHEMA` | `MSMM DASHBOARD` | Schema name (with space) |
+| `ORACLE_SCHEMA` | `xxxxxxxx` | Schema name (with space) |
 | `ORACLE_TABLE` | `LICENSES` | Main table name |
 
 ### 5.2 Flask Configuration (REQUIRED)
@@ -94,7 +94,7 @@ This is the **MOST IMPORTANT** step. Click on **"Environment Variables"** and ad
 ### 5.3 Company Information (OPTIONAL but Recommended)
 | Variable Name | Value | Description |
 |--------------|--------|-------------|
-| `COMPANY_NAME` | `MSMM Engineering` | Your company name |
+| `COMPANY_NAME` | `xxxxxxxxxx` | Your company name |
 | `COMPANY_WEBSITE` | `https://www.msmmeng.com` | Company website |
 | `SUPPORT_EMAIL` | `support@msmmeng.com` | Support email |
 
@@ -104,7 +104,7 @@ This is the **MOST IMPORTANT** step. Click on **"Environment Variables"** and ad
 | Variable Name | Value | Description |
 |--------------|--------|-------------|
 | `SMTP_SERVER` | `smtp.gmail.com` | SMTP server address |
-| `SMTP_PORT` | `587` | SMTP port |
+| `SMTP_PORT` | `xxxx` | SMTP port |
 | `SMTP_USERNAME` | `your-email@gmail.com` | SMTP username |
 | `SMTP_PASSWORD` | `[App Password]` | SMTP password/app password |
 | `SENDER_EMAIL` | `your-email@gmail.com` | From email address |
@@ -113,7 +113,7 @@ This is the **MOST IMPORTANT** step. Click on **"Environment Variables"** and ad
 ### 5.5 How to Add Environment Variables in Vercel UI:
 1. In the Environment Variables section, click **"Add"**
 2. Enter the **Name** (e.g., `ORACLE_HOST`)
-3. Enter the **Value** (e.g., `msmm-dashboard.maxapex.net`)
+3. Enter the **Value** (e.g., `xxxxxxxxx.xxxxxx.net`)
 4. Select environments: ✅ Production, ✅ Preview, ✅ Development
 5. Click **"Add"** to save
 6. Repeat for all variables
