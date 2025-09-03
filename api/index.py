@@ -24,8 +24,22 @@ logging.basicConfig(
 )
 logger = logging.getLogger(__name__)
 
-# Create Flask app
-app = Flask(__name__)
+# Create Flask app with proper template paths for Vercel
+import sys
+from pathlib import Path
+
+# Get the correct path for templates
+if os.path.exists('/var/task/templates'):
+    # Vercel production
+    template_dir = '/var/task/templates'
+elif os.path.exists(os.path.join(os.path.dirname(__file__), '../templates')):
+    # Local development
+    template_dir = os.path.join(os.path.dirname(__file__), '../templates')
+else:
+    # Fallback
+    template_dir = 'templates'
+
+app = Flask(__name__, template_folder=template_dir)
 app.secret_key = os.getenv('FLASK_SECRET_KEY', 'your-secret-key-change-this')
 
 @app.context_processor
@@ -120,6 +134,17 @@ def query_oracle(query, params=None):
             connection.close()
         raise
 
+
+@app.route('/health')
+def health_check():
+    """Health check endpoint for debugging"""
+    return jsonify({
+        'status': 'healthy',
+        'template_folder': app.template_folder,
+        'templates_exist': os.path.exists(app.template_folder) if app.template_folder else False,
+        'oracle_configured': bool(ORACLE_CONFIG.get('host')),
+        'environment': 'vercel' if os.path.exists('/var/task') else 'local'
+    })
 
 @app.route('/')
 def dashboard():
@@ -1278,17 +1303,42 @@ Best regards,
         return jsonify({'error': str(e)}), 500
 
 
+@app.errorhandler(Exception)
+def handle_exception(e):
+    """Handle all uncaught exceptions"""
+    import traceback
+    # Log the exception
+    logger.error(f"Unhandled exception: {e}\nTraceback: {traceback.format_exc()}")
+    
+    # Return JSON error for debugging
+    return jsonify({
+        'error': type(e).__name__,
+        'message': str(e),
+        'traceback': traceback.format_exc() if os.getenv('FLASK_DEBUG') == 'True' else None,
+        'template_dir': app.template_folder,
+        'python_version': sys.version
+    }), 500
+
 @app.errorhandler(404)
 def page_not_found(e):
     """Handle 404 errors"""
-    return render_template('base.html', company_info=COMPANY_INFO), 404
+    return jsonify({'error': 'Not Found', 'message': str(e)}), 404
 
 
 @app.errorhandler(500)
 def internal_error(e):
     """Handle 500 errors"""
-    logger.error(f"Internal server error: {e}")
-    return render_template('base.html', company_info=COMPANY_INFO), 500
+    import traceback
+    error_msg = f"Internal server error: {e}"
+    traceback_str = traceback.format_exc()
+    logger.error(f"{error_msg}\nTraceback:\n{traceback_str}")
+    
+    # Return a JSON response with error details for debugging
+    return jsonify({
+        'error': 'Internal Server Error',
+        'message': str(e),
+        'details': traceback_str if os.getenv('FLASK_DEBUG') == 'True' else 'Enable debug mode for details'
+    }), 500
 
 
 def main():
