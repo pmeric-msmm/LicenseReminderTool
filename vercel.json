@@ -1,14 +1,50 @@
 {
   "version": 2,
-  "functions": {
-    "api/index.py": {
-      "includeFiles": "templates/**"
+  "builds": [
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
+    },
+    {
+      "src": "api/cron.py",
+      "use": "@vercel/python",
+      "config": {
+        "maxLambdaSize": "50mb"
+      }
     }
-  },
+  ],
   "routes": [
+    {
+      "src": "/static/(.*)",
+      "dest": "/static/$1"
+    },
+    {
+      "src": "/api/cron/check-reminders",
+      "dest": "/api/cron.py"
+    },
     {
       "src": "/(.*)",
       "dest": "/api/index.py"
+    }
+  ],
+  "functions": {
+    "api/index.py": {
+      "runtime": "python3.9",
+      "includeFiles": "templates/**",
+      "maxDuration": 30
+    },
+    "api/cron.py": {
+      "runtime": "python3.9",
+      "maxDuration": 30
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/check-reminders",
+      "schedule": "0 9 * * *"
     }
   ]
 } 
