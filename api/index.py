@@ -240,6 +240,7 @@ def dashboard():
                 LIC_STATE as lic_state,
                 LIC_NO as lic_no,
                 EXPIRATION_DATE as expiration_date,
+                LIC_NOTIFY_NAMES as lic_notify_names,
                 TRUNC(SYSDATE) - TRUNC(EXPIRATION_DATE) as days_overdue
             FROM "{schema}".LICENSES
             WHERE EXPIRATION_DATE < SYSDATE
@@ -256,6 +257,7 @@ def dashboard():
                 LIC_STATE as lic_state,
                 LIC_NO as lic_no,
                 EXPIRATION_DATE as expiration_date,
+                LIC_NOTIFY_NAMES as lic_notify_names,
                 TRUNC(EXPIRATION_DATE) - TRUNC(SYSDATE) as days_until_expiration
             FROM "{schema}".LICENSES
             WHERE EXPIRATION_DATE >= SYSDATE
@@ -272,6 +274,7 @@ def dashboard():
                 LIC_STATE as lic_state,
                 LIC_NO as lic_no,
                 EXPIRATION_DATE as expiration_date,
+                LIC_NOTIFY_NAMES as lic_notify_names,
                 TRUNC(EXPIRATION_DATE) - TRUNC(SYSDATE) as days_until_expiration
             FROM "{schema}".LICENSES
             WHERE EXPIRATION_DATE > SYSDATE + :critical
@@ -288,6 +291,7 @@ def dashboard():
                 LIC_STATE as lic_state,
                 LIC_NO as lic_no,
                 EXPIRATION_DATE as expiration_date,
+                LIC_NOTIFY_NAMES as lic_notify_names,
                 TRUNC(EXPIRATION_DATE) - TRUNC(SYSDATE) as days_until_expiration
             FROM "{schema}".LICENSES
             WHERE EXPIRATION_DATE > SYSDATE + :warning
@@ -304,6 +308,7 @@ def dashboard():
                 LIC_STATE as lic_state,
                 LIC_NO as lic_no,
                 EXPIRATION_DATE as expiration_date,
+                LIC_NOTIFY_NAMES as lic_notify_names,
                 TRUNC(EXPIRATION_DATE) - TRUNC(SYSDATE) as days_until_expiration
             FROM "{schema}".LICENSES
             WHERE EXPIRATION_DATE >= SYSDATE
@@ -369,6 +374,11 @@ def licenses():
         # Get filter parameters
         filter_type = request.args.get('filter', 'all')
         search_query = request.args.get('search', '')
+        
+        # Get dashboard filter parameters for back button
+        upcoming_days = int(request.args.get('upcoming_days', 60))
+        critical_days = int(request.args.get('critical_days', 10))
+        warning_days = int(request.args.get('warning_days', 30))
         
         # Build base query
         base_query = f"""
@@ -457,10 +467,26 @@ def licenses():
             
             processed_licenses.append(license_copy)
         
+        # Set page title based on filter type
+        page_title_map = {
+            'all': 'All Licenses',
+            'expiring': 'Expiring Soon',
+            'critical': 'Critical - Expiring Soon',
+            'warning': 'Warning - Expiring in 30 Days',
+            'past_due': 'Past Due Licenses',
+            'overdue': 'Overdue Licenses',
+            'no-email': 'Licenses without Email'
+        }
+        page_title = page_title_map.get(filter_type, 'All Licenses')
+        
         return render_template('licenses.html', 
                              licenses=processed_licenses,
                              filter_type=filter_type,
+                             page_title=page_title,
                              search_query=search_query,
+                             upcoming_days=upcoming_days,
+                             critical_days=critical_days,
+                             warning_days=warning_days,
                              company_info=COMPANY_INFO)
     except Exception as e:
         logger.error(f"Licenses page error: {e}")
@@ -468,7 +494,11 @@ def licenses():
         return render_template('licenses.html', 
                              licenses=[],
                              filter_type='all',
+                             page_title='All Licenses',
                              search_query='',
+                             upcoming_days=60,
+                             critical_days=10,
+                             warning_days=30,
                              company_info=COMPANY_INFO)
 
 
