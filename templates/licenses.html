@@ -64,8 +64,9 @@
                                     <th>Type</th>
                                     <th>State</th>
                                     <th>License Number</th>
-                                    <th>Issue Date</th>
+                                    <th>First Issue Date</th>
                                     <th>Expiration Date</th>
+                                    <th>Comments</th>
                                     <th>Email Contacts</th>
                                     <th>Actions</th>
                                 </tr>
@@ -104,6 +105,15 @@
                                             <span data-date="{{ license.expiration_date }}">{{ license.expiration_date }}</span>
                                         {% else %}
                                             <span class="text-muted">No expiration</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if license.lic_comments %}
+                                            <div class="text-truncate" style="max-width: 150px;" title="{{ license.lic_comments }}">
+                                                {{ license.lic_comments }}
+                                            </div>
+                                        {% else %}
+                                            <span class="text-muted">No comments</span>
                                         {% endif %}
                                     </td>
                                     <td>
@@ -260,7 +270,7 @@
                     
                     <div class="row">
                         <div class="col-md-6 mb-3">
-                            <label for="editIssueDate" class="form-label">Issue Date</label>
+                            <label for="editIssueDate" class="form-label">First Issue Date</label>
                             <input type="date" class="form-control" id="editIssueDate">
                         </div>
                         <div class="col-md-6 mb-3">
@@ -279,6 +289,14 @@
                             <input type="text" class="form-control" id="editNotifyEmails" 
                                    placeholder="email1@example.com, email2@example.com">
                             <small class="form-text text-muted">Separate multiple emails with commas</small>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12 mb-3">
+                            <label for="editComments" class="form-label">Comments</label>
+                            <textarea class="form-control" id="editComments" rows="3" 
+                                      placeholder="Enter any additional comments or notes..."></textarea>
                         </div>
                     </div>
                 </form>
@@ -325,7 +343,7 @@
                 // Populate the modal with license data - check each element exists
                 const elements = [
                     'editLicenseId', 'editLicenseName', 'editLicenseType', 'editLicenseState',
-                    'editLicenseNumber', 'editIssueDate', 'editExpirationDate', 'editAscemNo', 'editNotifyEmails'
+                    'editLicenseNumber', 'editIssueDate', 'editExpirationDate', 'editAscemNo', 'editNotifyEmails', 'editComments'
                 ];
                 
                 for (let elementId of elements) {
@@ -347,6 +365,7 @@
                 document.getElementById('editExpirationDate').value = data.expiration_date ? data.expiration_date.split('T')[0] : '';
                 document.getElementById('editAscemNo').value = data.ascem_no || '';
                 document.getElementById('editNotifyEmails').value = data.lic_notify_names || '';
+                document.getElementById('editComments').value = data.lic_comments || '';
                 
                 // Set license type after a short delay to ensure options are loaded
                 setTimeout(() => {
@@ -374,7 +393,8 @@
             first_issue_date: document.getElementById('editIssueDate').value || null,
             expiration_date: document.getElementById('editExpirationDate').value || null,
             ascem_no: document.getElementById('editAscemNo').value,
-            lic_notify_names: document.getElementById('editNotifyEmails').value
+            lic_notify_names: document.getElementById('editNotifyEmails').value,
+            lic_comments: document.getElementById('editComments').value
         };
 
         // Remove empty strings and replace with null for optional fields
@@ -449,6 +469,7 @@
         document.getElementById('editExpirationDate').value = '';
         document.getElementById('editAscemNo').value = '';
         document.getElementById('editNotifyEmails').value = '';
+        document.getElementById('editComments').value = '';
 
         const bootstrapModal = new bootstrap.Modal(modal);
         bootstrapModal.show();

@@ -392,6 +392,7 @@ def licenses():
                 FIRST_ISSUE_DATE as first_issue_date,
                 EXPIRATION_DATE as expiration_date,
                 LIC_NOTIFY_NAMES as lic_notify_names,
+                LIC_COMMENTS as lic_comments,
                 TRUNC(EXPIRATION_DATE) - TRUNC(SYSDATE) as days_until_expiration
             FROM "{schema}".LICENSES
         """
@@ -400,16 +401,22 @@ def licenses():
         
         # Apply filters
         if filter_type == 'expiring':
-            where_conditions.append("""
+            where_conditions.append(f"""
                 EXPIRATION_DATE IS NOT NULL 
                 AND EXPIRATION_DATE >= SYSDATE 
-                AND EXPIRATION_DATE <= SYSDATE + 30
+                AND EXPIRATION_DATE <= SYSDATE + {upcoming_days}
             """)
         elif filter_type == 'critical':
-            where_conditions.append("""
+            where_conditions.append(f"""
                 EXPIRATION_DATE IS NOT NULL 
                 AND EXPIRATION_DATE >= SYSDATE 
-                AND EXPIRATION_DATE <= SYSDATE + 7
+                AND EXPIRATION_DATE <= SYSDATE + {critical_days}
+            """)
+        elif filter_type == 'warning':
+            where_conditions.append(f"""
+                EXPIRATION_DATE IS NOT NULL 
+                AND EXPIRATION_DATE > SYSDATE + {critical_days}
+                AND EXPIRATION_DATE <= SYSDATE + {warning_days}
             """)
         elif filter_type == 'overdue':
             where_conditions.append("EXPIRATION_DATE < SYSDATE")
@@ -776,6 +783,7 @@ def api_create_license():
                 FIRST_ISSUE_DATE,
                 EXPIRATION_DATE,
                 LIC_NOTIFY_NAMES,
+                LIC_COMMENTS,
                 EMAIL_ENABLED
             ) VALUES (
                 :lic_id,
@@ -784,9 +792,10 @@ def api_create_license():
                 :lic_type,
                 :lic_no,
                 :ascem_no,
-                TO_DATE(:first_issue_date, 'YYYY-MM-DD'),
-                TO_DATE(:expiration_date, 'YYYY-MM-DD'),
+                CASE WHEN :first_issue_date IS NOT NULL THEN TO_DATE(:first_issue_date, 'YYYY-MM-DD') ELSE NULL END,
+                CASE WHEN :expiration_date IS NOT NULL THEN TO_DATE(:expiration_date, 'YYYY-MM-DD') ELSE NULL END,
                 :lic_notify_names,
+                :lic_comments,
                 1
             )
         """, {
@@ -798,7 +807,8 @@ def api_create_license():
             'ascem_no': data.get('ascem_no'),
             'first_issue_date': data.get('first_issue_date'),
             'expiration_date': data.get('expiration_date'),
-            'lic_notify_names': data.get('lic_notify_names')
+            'lic_notify_names': data.get('lic_notify_names'),
+            'lic_comments': data.get('lic_comments')
         })
         
         return jsonify({'success': True, 'id': next_id})
@@ -826,6 +836,7 @@ def api_license(license_id):
                     FIRST_ISSUE_DATE,
                     EXPIRATION_DATE,
                     LIC_NOTIFY_NAMES,
+                    LIC_COMMENTS,
                     EMAIL_ENABLED
                 FROM "{schema}".LICENSES
                 WHERE LIC_ID = :id
@@ -850,16 +861,22 @@ def api_license(license_id):
                     LIC_STATE = :lic_state,
                     LIC_TYPE = :lic_type,
                     LIC_NO = :lic_no,
-                    EXPIRATION_DATE = TO_DATE(:expiration_date, 'YYYY-MM-DD'),
-                    LIC_NOTIFY_NAMES = :lic_notify_names
+                    ASCEM_NO = :ascem_no,
+                    FIRST_ISSUE_DATE = CASE WHEN :first_issue_date IS NOT NULL THEN TO_DATE(:first_issue_date, 'YYYY-MM-DD') ELSE NULL END,
+                    EXPIRATION_DATE = CASE WHEN :expiration_date IS NOT NULL THEN TO_DATE(:expiration_date, 'YYYY-MM-DD') ELSE NULL END,
+                    LIC_NOTIFY_NAMES = :lic_notify_names,
+                    LIC_COMMENTS = :lic_comments
                 WHERE LIC_ID = :id
             """, {
                 'lic_name': data.get('lic_name'),
                 'lic_state': data.get('lic_state'),
                 'lic_type': data.get('lic_type'),
                 'lic_no': data.get('lic_no'),
+                'ascem_no': data.get('ascem_no'),
+                'first_issue_date': data.get('first_issue_date'),
                 'expiration_date': data.get('expiration_date'),
                 'lic_notify_names': data.get('lic_notify_names'),
+                'lic_comments': data.get('lic_comments'),
                 'id': license_id
             })
             
