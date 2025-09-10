@@ -345,6 +345,11 @@ def licenses():
         filter_type = request.args.get('filter', 'all')
         search_query = request.args.get('search', '')
         
+        # Get dynamic filter parameters from URL
+        upcoming_days = int(request.args.get('upcoming_days', 60))
+        critical_days = int(request.args.get('critical_days', 10))
+        warning_days = int(request.args.get('warning_days', 30))
+        
         # Build base query
         base_query = f"""
             SELECT 
@@ -363,21 +368,27 @@ def licenses():
         
         where_conditions = []
         
-        # Apply filters
+        # Apply filters based on filter_type
         if filter_type == 'expiring':
-            where_conditions.append("""
+            where_conditions.append(f"""
                 EXPIRATION_DATE IS NOT NULL 
                 AND EXPIRATION_DATE >= SYSDATE 
-                AND EXPIRATION_DATE <= SYSDATE + 30
+                AND EXPIRATION_DATE <= SYSDATE + {upcoming_days}
             """)
         elif filter_type == 'critical':
-            where_conditions.append("""
+            where_conditions.append(f"""
                 EXPIRATION_DATE IS NOT NULL 
                 AND EXPIRATION_DATE >= SYSDATE 
-                AND EXPIRATION_DATE <= SYSDATE + 7
+                AND EXPIRATION_DATE <= SYSDATE + {critical_days}
             """)
-        elif filter_type == 'overdue':
-            where_conditions.append("EXPIRATION_DATE < SYSDATE")
+        elif filter_type == 'warning':
+            where_conditions.append(f"""
+                EXPIRATION_DATE IS NOT NULL 
+                AND EXPIRATION_DATE >= SYSDATE + {critical_days + 1} 
+                AND EXPIRATION_DATE <= SYSDATE + {warning_days}
+            """)
+        elif filter_type == 'past_due' or filter_type == 'overdue':
+            where_conditions.append("EXPIRATION_DATE IS NOT NULL AND EXPIRATION_DATE < SYSDATE")
         elif filter_type == 'no-email':
             where_conditions.append("(LIC_NOTIFY_NAMES IS NULL OR TRIM(LIC_NOTIFY_NAMES) IS NULL)")
         
@@ -432,10 +443,27 @@ def licenses():
             
             processed_licenses.append(license_copy)
         
+        # Create filter-specific page title
+        page_title = "All Licenses"
+        if filter_type == 'warning':
+            page_title = f"Warning Licenses (Expiring in {critical_days + 1}-{warning_days} days)"
+        elif filter_type == 'critical':
+            page_title = f"Critical Licenses (Expiring in 1-{critical_days} days)"
+        elif filter_type == 'past_due' or filter_type == 'overdue':
+            page_title = "Past Due Licenses (Expired)"
+        elif filter_type == 'expiring':
+            page_title = f"Upcoming Expirations (Next {upcoming_days} days)"
+        elif filter_type == 'no-email':
+            page_title = "Licenses Without Email Addresses"
+        
         return render_template('licenses.html', 
                              licenses=processed_licenses,
                              filter_type=filter_type,
                              search_query=search_query,
+                             page_title=page_title,
+                             upcoming_days=upcoming_days,
+                             critical_days=critical_days,
+                             warning_days=warning_days,
                              company_info=COMPANY_INFO)
     except Exception as e:
         logger.error(f"Licenses page error: {e}")
@@ -444,6 +472,10 @@ def licenses():
                              licenses=[],
                              filter_type='all',
                              search_query='',
+                             page_title="All Licenses",
+                             upcoming_days=60,
+                             critical_days=10,
+                             warning_days=30,
                              company_info=COMPANY_INFO)
 
 

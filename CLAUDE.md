@@ -34,8 +34,11 @@ Critical Oracle notes:
 - `web_dashboard.py`: Original Supabase dashboard
 - `api/index_supabase_backup.py`: Backup of Supabase API version
 
-### Key Classes
-- `LicenseReminderOracleSystem`: Main Oracle-based reminder system class
+### Key Classes and Files
+- `LicenseReminderOracleSystem`: Main Oracle-based reminder system class in `license_reminder_oracle.py`
+- Oracle connection utility scripts: `oracle_working_connection.py`, `oracle_test.py`
+- Database setup automation: `run_oracle_setup.py`
+- SQL DDL scripts: `oracle_setup.sql`
 
 ## Development Commands
 
@@ -62,9 +65,16 @@ python license_reminder_oracle.py schedule
 python license_reminder_oracle.py stats
 ```
 
-### Testing Oracle Connection
+### Testing and Debugging
 ```bash
+# Test Oracle connection
 source .venv/bin/activate && python oracle_working_connection.py
+
+# Test Oracle setup and views
+python oracle_test.py
+
+# Generate SQL inserts for testing
+python generate_sql_inserts.py
 ```
 
 ## Environment Variables
@@ -151,20 +161,24 @@ Daily reminders are sent for overdue licenses.
 ## Common Issues and Solutions
 
 ### Oracle Connection Issues
-- If getting ORA-01017 (invalid credentials): Check username/password
-- If getting ORA-28000 (account locked): Use SYS with SYSDBA
-- Schema name has space: Use quoted identifier `"MSMM DASHBOARD"`
-- Connection test: Use `oracle_working_connection.py`
+- ORA-01017 (invalid credentials): Check `ORACLE_USER` and `ORACLE_PASSWORD` in `.env`
+- ORA-28000 (account locked): Ensure using SYS user with SYSDBA privileges
+- ORA-00942 (table/view does not exist): Run `python run_oracle_setup.py`
+- Schema name contains space: Always use quoted identifier `"MSMM DASHBOARD"`
+- Connection test: Use `python oracle_working_connection.py`
 
-### Python Environment
-- Always use virtual environment `.venv`
-- On macOS, may need virtual environment to avoid package conflicts
-- Install Oracle driver: `pip install oracledb`
+### Python Environment Issues
+- Always activate virtual environment: `source .venv/bin/activate`
+- Missing dependencies: `pip install -r requirements.txt`
+- On macOS: Use virtual environment to avoid system Python conflicts
+- Oracle driver installation: `pip install oracledb` (replaces cx_Oracle)
 
-### Template Not Found Errors
-- Ensure `templates/` directory exists in project root
-- For Vercel, check `includeFiles` in `vercel.json`
-- Templates: `base.html`, `dashboard.html`, `licenses.html`, `reminders.html`
+### Development and Deployment Issues
+- Template not found: Ensure `templates/` directory exists in project root
+- Vercel template issues: Check `includeFiles` in `vercel.json` includes `templates/**`
+- Log file access: Check permissions for `license_reminders_oracle.log`
+- Email delivery failures: Verify SMTP settings and Gmail app passwords
+- Missing environment variables: Ensure all required vars are set in `.env`
 
 ## Setup and Migration
 
@@ -203,9 +217,11 @@ Legacy Supabase components are retained for reference but not actively used.
 
 ### Manual Testing Steps
 1. Test Oracle connection: `python oracle_working_connection.py`
-2. Test local dashboard: `python web_dashboard_oracle.py`
-3. Test reminder system: `python license_reminder_oracle.py stats`
-4. Verify API endpoints work locally before deploying
+2. Test database setup: `python oracle_test.py`
+3. Test local dashboard: `python web_dashboard_oracle.py`
+4. Test reminder system: `python license_reminder_oracle.py stats`
+5. Test data upload: `python license_reminder_oracle.py upload`
+6. Verify API endpoints work locally before deploying
 
 ### Database Views Testing
 ```sql
