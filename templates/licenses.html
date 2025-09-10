@@ -57,17 +57,33 @@
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
+                        <table class="table table-hover mb-0" id="licensesTable">
                             <thead>
                                 <tr>
-                                    <th>License Name</th>
-                                    <th>Type</th>
-                                    <th>State</th>
-                                    <th>License Number</th>
-                                    <th>First Issue Date</th>
-                                    <th>Expiration Date</th>
-                                    <th>Comments</th>
-                                    <th>Email Contacts</th>
+                                    <th class="sortable" data-column="0">
+                                        License Name <i class="fas fa-sort text-muted"></i>
+                                    </th>
+                                    <th class="sortable" data-column="1">
+                                        Type <i class="fas fa-sort text-muted"></i>
+                                    </th>
+                                    <th class="sortable" data-column="2">
+                                        State <i class="fas fa-sort text-muted"></i>
+                                    </th>
+                                    <th class="sortable" data-column="3">
+                                        License Number <i class="fas fa-sort text-muted"></i>
+                                    </th>
+                                    <th class="sortable" data-column="4" data-type="date">
+                                        First Issue Date <i class="fas fa-sort text-muted"></i>
+                                    </th>
+                                    <th class="sortable" data-column="5" data-type="date">
+                                        Expiration Date <i class="fas fa-sort text-muted"></i>
+                                    </th>
+                                    <th class="sortable" data-column="6">
+                                        Comments <i class="fas fa-sort text-muted"></i>
+                                    </th>
+                                    <th class="sortable" data-column="7">
+                                        Email Contacts <i class="fas fa-sort text-muted"></i>
+                                    </th>
                                     <th>Actions</th>
                                 </tr>
                             </thead>
@@ -551,6 +567,82 @@
         }
     }
 
+    // Table sorting functionality
+    let sortDirection = {};
+    
+    function sortTable(column, type = 'string') {
+        const table = document.getElementById('licensesTable');
+        const tbody = table.querySelector('tbody');
+        const rows = Array.from(tbody.querySelectorAll('tr'));
+        const header = document.querySelector(`[data-column="${column}"]`);
+        
+        // Reset all other headers
+        document.querySelectorAll('.sortable').forEach(h => {
+            if (h !== header) {
+                h.classList.remove('asc', 'desc');
+            }
+        });
+        
+        // Determine sort direction
+        if (!sortDirection[column] || sortDirection[column] === 'desc') {
+            sortDirection[column] = 'asc';
+            header.classList.remove('desc');
+            header.classList.add('asc');
+        } else {
+            sortDirection[column] = 'desc';
+            header.classList.remove('asc');
+            header.classList.add('desc');
+        }
+        
+        const isAsc = sortDirection[column] === 'asc';
+        
+        rows.sort((a, b) => {
+            let aVal = a.cells[column].textContent.trim();
+            let bVal = b.cells[column].textContent.trim();
+            
+            // Handle N/A values
+            if (aVal === 'N/A' || aVal === 'No emails set' || aVal === 'No expiration') {
+                aVal = isAsc ? 'zzz' : '';
+            }
+            if (bVal === 'N/A' || bVal === 'No emails set' || bVal === 'No expiration') {
+                bVal = isAsc ? 'zzz' : '';
+            }
+            
+            if (type === 'date') {
+                // Extract date from data-date attribute or text
+                const aDateElement = a.cells[column].querySelector('[data-date]');
+                const bDateElement = b.cells[column].querySelector('[data-date]');
+                
+                let aDate, bDate;
+                
+                if (aDateElement) {
+                    aDate = new Date(aDateElement.getAttribute('data-date'));
+                } else {
+                    // Try to parse the text content
+                    aDate = new Date(aVal);
+                }
+                
+                if (bDateElement) {
+                    bDate = new Date(bDateElement.getAttribute('data-date'));
+                } else {
+                    bDate = new Date(bVal);
+                }
+                
+                // Handle invalid dates
+                if (isNaN(aDate)) aDate = isAsc ? new Date(0) : new Date('9999-12-31');
+                if (isNaN(bDate)) bDate = isAsc ? new Date(0) : new Date('9999-12-31');
+                
+                return isAsc ? aDate - bDate : bDate - aDate;
+            } else {
+                // String comparison
+                return isAsc ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+            }
+        });
+        
+        // Re-append sorted rows
+        rows.forEach(row => tbody.appendChild(row));
+    }
+
     // Add search/filter functionality
     document.addEventListener('DOMContentLoaded', function() {
 
@@ -581,6 +673,15 @@
                 } else {
                     row.style.display = 'none';
                 }
+            });
+        });
+        
+        // Add click event listeners to sortable headers
+        document.querySelectorAll('.sortable').forEach(header => {
+            header.addEventListener('click', function() {
+                const column = parseInt(this.getAttribute('data-column'));
+                const type = this.getAttribute('data-type') || 'string';
+                sortTable(column, type);
             });
         });
     });

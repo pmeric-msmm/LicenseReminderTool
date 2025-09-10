@@ -157,6 +157,34 @@
         .loading-content {
             text-align: center;
         }
+        
+        /* Sortable table styles */
+        .sortable {
+            cursor: pointer;
+            user-select: none;
+            position: relative;
+            transition: background-color 0.2s ease;
+        }
+        
+        .sortable:hover {
+            background-color: #e9ecef !important;
+        }
+        
+        .sortable.asc i {
+            color: #28a745 !important;
+        }
+        
+        .sortable.desc i {
+            color: #dc3545 !important;
+        }
+        
+        .sortable.asc i:before {
+            content: "\f0de"; /* fa-sort-up */
+        }
+        
+        .sortable.desc i:before {
+            content: "\f0dd"; /* fa-sort-down */
+        }
     </style>
     
     {% block extra_css %}{% endblock %}
