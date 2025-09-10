@@ -16,9 +16,9 @@
                 <div>
                     <i class="fas fa-filter me-2"></i>
                     <strong>Filtered View:</strong> {{ page_title }}
-                    {% if upcoming_days != 35 or critical_days != 10 or warning_days != 30 %}
+                    {% if upcoming_days != 60 or critical_days != 7 or warning_days != 30 %}
                         <br><small class="text-muted">
-                            Custom filters: Upcoming {{ upcoming_days }} days, Critical {{ critical_days }} days, Warning {{ warning_days }} days
+                            Custom filters: Upcoming {{ upcoming_days }} days, Warning {{ warning_days }} days, Critical {{ critical_days }} days
                         </small>
                     {% endif %}
                 </div>

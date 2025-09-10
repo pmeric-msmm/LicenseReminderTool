@@ -347,7 +347,7 @@ def licenses():
         
         # Get dynamic filter parameters from URL
         upcoming_days = int(request.args.get('upcoming_days', 60))
-        critical_days = int(request.args.get('critical_days', 10))
+        critical_days = int(request.args.get('critical_days', 7))
         warning_days = int(request.args.get('warning_days', 30))
         
         # Build base query
@@ -475,7 +475,7 @@ def licenses():
                              search_query='',
                              page_title="All Licenses",
                              upcoming_days=60,
-                             critical_days=10,
+                             critical_days=7,
                              warning_days=30,
                              company_info=COMPANY_INFO)
 
