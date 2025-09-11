@@ -973,6 +973,10 @@ def api_send_reminders():
         sent_count = 0
         failed_count = 0
         
+        # Get filter parameters from request or use defaults
+        critical_days = int(request.args.get('critical_days', 7))
+        warning_days = int(request.args.get('warning_days', 30))
+        
         # Get SMTP configuration
         smtp_server = os.getenv('SMTP_SERVER', 'smtp.gmail.com')
         smtp_port = int(os.getenv('SMTP_PORT', 587))
@@ -1001,14 +1005,12 @@ def api_send_reminders():
         for license in licenses:
             # Determine reminder type based on days until expiration
             days_left = license.get('days_until_expiration', 0)
-            if days_left <= 10:
-                reminder_type = '10_days'
-            elif days_left <= 15:
-                reminder_type = '15_days'
-            elif days_left <= 30:
-                reminder_type = '30_days'
+            if days_left <= critical_days:
+                reminder_type = 'critical'
+            elif days_left <= warning_days:
+                reminder_type = 'warning'
             else:
-                reminder_type = 'custom'
+                reminder_type = 'upcoming'
             
             # Prepare email details
             email_to = license.get('lic_notify_names') or ''
